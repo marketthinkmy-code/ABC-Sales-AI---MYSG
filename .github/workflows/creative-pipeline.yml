@@ -1,0 +1,38 @@
+name: Creative Pipeline (Drive image -> ad)
+
+# 掃 Drive 資料夾的新圖 → AI 寫文案 → 建圖片廣告(PAUSED)
+on:
+  workflow_dispatch:
+    inputs:
+      round:
+        description: "本輪標記 (如 IMG1)"
+        required: true
+        default: "IMG1"
+      live:
+        description: "true=真的建廣告(PAUSED) / false=只試跑列新圖+文案"
+        required: true
+        default: "false"
+  schedule:
+    - cron: "0 2 * * *"   # 每天 UTC 02:00 = 台北 10:00 掃一次
+
+jobs:
+  creative:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run creative pipeline
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          # 排程自動跑時要真的建；手動時看 live 輸入
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || (github.event.inputs.live == 'true' && 'false' || 'true') }}
+        run: python creative_pipeline.py --round "${{ github.event.inputs.round || 'AUTO' }}"
