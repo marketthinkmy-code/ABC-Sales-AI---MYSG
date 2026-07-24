@@ -50,10 +50,24 @@ def delete_existing_campaigns(account, name):
         print(f"  (清理同名 campaign 略過: {e})")
 
 
-def copy_source_campaign(account, name):
-    """複製來源 ad set 的母 campaign(空殼，deep_copy=False)，完整繼承 objective/buying 設定，
-    保證後續 ad set 複製不會 Objective Mismatch。回傳新 campaign id。"""
-    src_camp = AdSet(C.CLONE_SOURCE_ADSET).api_get(fields=["campaign_id"])["campaign_id"]
+def find_winner_ads(account, keywords):
+    """依名稱關鍵字找現有贏家廣告，回傳 [{id,name,adset_id,kw}]。"""
+    ads = [{"id": a["id"], "name": a.get("name", ""), "adset_id": a.get("adset_id")}
+           for a in account.get_ads(fields=["id", "name", "adset_id"], params={"limit": 1000})]
+    print(f"  掃到 {len(ads)} 支現有廣告")
+    picked = []
+    for kw in keywords:
+        m = next((a for a in ads if kw in a["name"]), None)
+        if m:
+            picked.append({**m, "kw": kw})
+        else:
+            print(f"  ⚠️ 找不到名稱含「{kw}」的現有廣告")
+    return picked
+
+
+def copy_source_campaign(account, name, src_adset_id):
+    """複製指定 ad set 的母 campaign(空殼，deep_copy=False)，繼承 objective/buying 設定。"""
+    src_camp = AdSet(src_adset_id).api_get(fields=["campaign_id"])["campaign_id"]
     resp = Campaign(src_camp).create_copy(params={"deep_copy": False, "status_option": "PAUSED"})
     new_id = (resp.get("copied_campaign_id") or resp.get("id")) if hasattr(resp, "get") else None
     if not new_id:
@@ -80,11 +94,10 @@ def create_campaign(account, name, with_budget=True, objective=None):
     return account.create_campaign(params=params)["id"]
 
 
-def clone_compliant_adset(account, campaign_id, name):
-    """複製一個現有已合規的 ad set(繼承台灣廣告主聲明)，清掉舊廣告，回傳新 ad set id。
-    這是繞過 Taiwan 'No advertiser information' 的可靠做法。"""
+def clone_compliant_adset(account, campaign_id, name, src_adset_id):
+    """複製指定的已合規 ad set(繼承台灣廣告主聲明)到新 campaign，清掉舊廣告，回傳新 ad set id。"""
     budget = C.load_yaml("launch_template.yaml")["ad_set"]["daily_budget_myr"]
-    resp = AdSet(C.CLONE_SOURCE_ADSET).create_copy(params={
+    resp = AdSet(src_adset_id).create_copy(params={
         "campaign_id": campaign_id,
         "status_option": "PAUSED",
     })
@@ -109,29 +122,25 @@ def clone_compliant_adset(account, campaign_id, name):
     return new_id
 
 
-def copy_winner_ads(account, adset_id, keywords, base):
-    """依名稱關鍵字找現有贏家廣告，複製進新 ad set，沿用舊 creative → 繞過 dev-mode。"""
-    # 掃帳號現有廣告的 id+name，逐關鍵字找第一個含該 hook 的廣告
-    all_ads = []
-    for ad in account.get_ads(fields=["id", "name"], params={"limit": 1000}):
-        all_ads.append({"id": ad["id"], "name": ad.get("name", "")})
-    print(f"  掃到 {len(all_ads)} 支現有廣告，開始比對關鍵字")
+def copy_winner_ads(account, adset_id, winners, base):
+    """把已找到的贏家廣告複製進新 ad set，沿用舊 creative → 繞過 dev-mode。
+    每支獨立 try/except：某支 objective 不合就跳過，不影響其他。"""
     count = 0
-    for i, kw in enumerate(keywords, 1):
-        match = next((a for a in all_ads if kw in a["name"]), None)
-        if not match:
-            print(f"  ⚠️ 找不到名稱含「{kw}」的現有廣告，跳過")
-            continue
-        resp = Ad(match["id"]).create_copy(params={"adset_id": adset_id,
-                                                   "status_option": "PAUSED"})
-        new_ad = (resp.get("copied_ad_id") or resp.get("id")) if hasattr(resp, "get") else None
+    for w in winners:
+        kw = w["kw"]
         try:
+            resp = Ad(w["id"]).create_copy(params={"adset_id": adset_id,
+                                                   "status_option": "PAUSED"})
+            new_ad = (resp.get("copied_ad_id") or resp.get("id")) if hasattr(resp, "get") else None
             if new_ad:
-                Ad(new_ad).api_update(params={"name": f"{base} | {kw}"})
-        except Exception:
-            pass
-        count += 1
-        print(f"  ✓ 複製贏家「{kw}」(來源 ad {match['id']}) → ad {new_ad}")
+                try:
+                    Ad(new_ad).api_update(params={"name": f"{base} | {kw}"})
+                except Exception:
+                    pass
+            count += 1
+            print(f"  ✓ 複製贏家「{kw}」(來源 ad {w['id']}) → ad {new_ad}")
+        except Exception as e:
+            print(f"  ⚠️ 贏家「{kw}」複製失敗(可能 objective 不合)，跳過: {e}")
     return count
 
 
@@ -247,17 +256,22 @@ def run(round_tag, only_angles=None):
 
         delete_existing_campaigns(account, base)   # 清掉上次失敗的同名空殼
         clone_mode = bool(C.CLONE_SOURCE_ADSET)
-        # clone 模式：複製來源 campaign 空殼(繼承 objective/buying 設定)，避免 Objective Mismatch
         if clone_mode:
-            camp_id = copy_source_campaign(account, base)
+            # 先找贏家廣告，用「第一支贏家的母 ad set/campaign」當合規容器 →
+            # objective 一定跟贏家一致，複製廣告不會 mismatch。
+            winners = find_winner_ads(account, C.WINNER_AD_KEYWORDS)
+            if not winners:
+                raise SystemExit("找不到任何贏家廣告(關鍵字對不上)，請檢查 WINNER_AD_KEYWORDS。")
+            src_adset = winners[0]["adset_id"]
+            print(f"  以贏家「{winners[0]['kw']}」的 ad set {src_adset} 為合規來源")
+            camp_id = copy_source_campaign(account, base, src_adset)
         else:
             camp_id = create_campaign(account, base, with_budget=True)
         try:
             if clone_mode:
-                print(f"  複製合規 ad set {C.CLONE_SOURCE_ADSET} → 繼承台灣廣告主聲明")
-                adset_id = clone_compliant_adset(account, camp_id, base)
-                # 複製現有贏家廣告(依名稱關鍵字，沿用 Live App 的 creative)→ 繞過 dev-mode
-                n = copy_winner_ads(account, adset_id, C.WINNER_AD_KEYWORDS, base)
+                adset_id = clone_compliant_adset(account, camp_id, base, src_adset)
+                print(f"  複製合規 ad set → 繼承台灣廣告主聲明；開始複製贏家廣告")
+                n = copy_winner_ads(account, adset_id, winners, base)
                 print(f"  → 已複製 {n} 支贏家廣告到 ad set {adset_id}")
             else:
                 adset_id = create_ad_set(account, camp_id, base, angle)
