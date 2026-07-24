@@ -1,0 +1,63 @@
+# =============================================================
+# 冠軍模板 (Launch Template) — ABC Sales AI
+# 照抄 Soo Cheng / StockBloom 已驗證結構,換品牌參數。
+# 自動上廣告時，系統讀這個檔決定 campaign/adset/creative 的所有設定。
+# 每次上新素材只需改 `creatives:` 區塊。
+# =============================================================
+
+brand:
+  code: "ABCSALES"            # 命名前綴，等同 Soo Cheng 的 "STOCKBLOOM"
+  display_name: "ABC Sales AI"
+
+# --- 必填：目標帳號與資產 (先填這 3 個) ---------------------
+account:
+  # ⚠️ 必須是 is_ads_mcp_enabled: true 的帳號。
+  # 注意：1984262458861966 (AI 回覆 幫你獲客) 目前 MCP 未啟用，不能用。
+  ad_account_id: "FILL_ME"       # 例: 689850610799710 (SG AI 员工) — 你自己定
+  page_id: "FILL_ME"             # FB 粉專 ID (ads_get_ad_account_pages 查)
+  instagram_id: ""               # 選填，留空則只跑 FB 版位
+  pixel_id: "FILL_ME"            # 轉換追蹤 pixel/dataset
+  currency: "MYR"
+
+# --- Campaign 層 (照抄 Soo Cheng) ---------------------------
+campaign:
+  objective: "OUTCOME_SALES"            # 報名 webinar = 網站轉換
+  buying_type: "AUCTION"
+  bid_strategy: "LOWEST_COST_WITHOUT_CAP"   # = "Highest volume"
+  budget_level: "campaign"              # CBO；預算下在 campaign 層
+  special_ad_categories: []             # 教育/投資類通常空
+
+# --- Ad Set 層 --------------------------------------------
+ad_set:
+  optimization_goal: "OFFSITE_CONVERSIONS"
+  conversion_event: "CompleteRegistration"   # = "Website registrations completed"
+  attribution_spec: "7d_click_1d_view"
+  daily_budget_myr: 100                  # 起跑預算；winner 才往上加 (見 rules)
+  geo:
+    countries: ["MY", "SG"]
+  age_min: 25
+  age_max: 55
+  genders: "all"
+  placements: "advantage_plus"           # 自動版位
+  # detailed_targeting 由 angles.yaml 逐角度帶入
+
+# --- Ad / Creative 層 --------------------------------------
+# 每次上新素材改這裡。命名見 docs/NAMING.md。
+creative_defaults:
+  call_to_action: "SIGN_UP"
+  landing_url: "FILL_ME"                 # webinar 報名頁 (帶 UTM)
+  display_url: ""
+
+# 待上架素材 (從 Google Drive「待上架」資料夾拉)
+creatives:
+  - video: "ABCSALES_0724_痛点恐惧_H01.mp4"
+    primary_text: "FILL_ME (fb-ad-copy 技能出文案)"
+    headline: "FILL_ME"
+  - video: "ABCSALES_0724_权威背书_H02.mp4"
+    primary_text: "FILL_ME"
+    headline: "FILL_ME"
+
+# --- 上架安全設定 ------------------------------------------
+launch:
+  initial_status: "PAUSED"    # 一律先 PAUSED，人工/規則檢查後才統一開
+  ads_per_adset: 3            # 對應 Soo Cheng 命名尾碼 "1-1-3"
