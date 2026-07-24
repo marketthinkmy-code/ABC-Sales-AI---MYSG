@@ -31,13 +31,15 @@ OBJECTIVE = _get("OBJECTIVE", "OUTCOME_SALES")
 CONVERSION_EVENT = _get("CONVERSION_EVENT", "CompleteRegistration")
 LANDING_URL = _get("LANDING_URL")
 
-# --- 優化門檻 (數字) ---
-TARGET_CPL = float(_get("TARGET_CPL", 260))
-KILL_CPL = float(_get("KILL_CPL", 440))
-SCALE_CPL = float(_get("SCALE_CPL", 260))
+# --- 優化門檻 (數字, TWD) ---
+# 依 AI 回覆 幫你獲客 帳號設定：目標 CPA 180，可接受到 240。
+# Secret 有填就用 Secret，沒填就用這裡的預設(這些不是機密，放預設即可)。
+TARGET_CPL = float(_get("TARGET_CPL", 180))
+KILL_CPL = float(_get("KILL_CPL", 240))       # CPA 高於此 → 關 (你說可接受到 240)
+SCALE_CPL = float(_get("SCALE_CPL", 180))     # CPA 低於此 → 加預算
 BUDGET_STEP_PCT = float(_get("BUDGET_STEP_PCT", 20))
 MAX_DAILY_BUDGET = float(_get("MAX_DAILY_BUDGET", 2600))
-MIN_SPEND_BEFORE_ACTION = float(_get("MIN_SPEND_BEFORE_ACTION", 280))
+MIN_SPEND_BEFORE_ACTION = float(_get("MIN_SPEND_BEFORE_ACTION", 180))
 DRY_RUN = str(_get("DRY_RUN", "true")).lower() == "true"
 
 ACT_ID = f"act_{AD_ACCOUNT_ID}"

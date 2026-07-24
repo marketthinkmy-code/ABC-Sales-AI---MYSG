@@ -73,21 +73,34 @@ def run():
     C.init_api()
     account = AdAccount(C.ACT_ID)
     rows = fetch_campaigns(account)
-    print(f"[optimize] {C.AD_ACCOUNT_ID} | {len(rows)} 支 ACTIVE | DRY_RUN={C.DRY_RUN}")
+    print(f"[optimize] {C.AD_ACCOUNT_ID} | {len(rows)} 支 ACTIVE | "
+          f"目標CPA<{C.TARGET_CPL:.0f} 關>{C.KILL_CPL:.0f} | DRY_RUN={C.DRY_RUN}")
+
+    # --- CPA 報表：花費 / 報名數 / CPA 一覽 ---
+    print("  " + "-" * 78)
+    print(f"  {'廣告 (Campaign)':32} | {'花費':>8} | {'報名':>5} | {'CPA':>7} | 動作")
+    print("  " + "-" * 78)
 
     pauses = [r for r in rows if decide(r)[0] == "PAUSE"]
     if len(pauses) > 10:
         print(f"⚠️ 保护栏: 要关 {len(pauses)} 支 (>10)，停手不执行，请人工检查。")
         return
 
+    total_spend = total_results = 0.0
     for r in rows:
         action, reason = decide(r)
-        tag = "[dry]" if C.DRY_RUN else "[do ]"
-        print(f"  {tag} {action:9} | {r['name'][:40]:40} | {reason}")
+        cpa = f"{r['cpl']:.0f}" if r['cpl'] else "-"
+        total_spend += r["spend"]
+        total_results += r["results"]
+        print(f"  {r['name'][:32]:32} | {r['spend']:>8.0f} | {r['results']:>5} | "
+              f"{cpa:>7} | {action} ({reason})")
         if not C.DRY_RUN and action in ("PAUSE", "SCALE", "DUPLICATE"):
             apply(r, action)
 
-    print("完成。" + ("(dry run，未真的改)" if C.DRY_RUN else ""))
+    avg = total_spend / total_results if total_results else 0
+    print("  " + "-" * 78)
+    print(f"  合計: 花費 {total_spend:.0f} | 報名 {total_results:.0f} | 平均CPA {avg:.0f} TWD")
+    print("完成。" + ("(dry run，未真的改)" if C.DRY_RUN else " ⚡真跑，已執行動作"))
 
 
 if __name__ == "__main__":
