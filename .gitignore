@@ -1,0 +1,10 @@
+# 憑證 — 絕不進 git
+api-engine/.env
+.env
+*.token
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

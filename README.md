@@ -35,4 +35,12 @@
 3. 用 `playbooks/launch.md` 上第一批廣告(先 PAUSED 檢查再開)。
 4. 用 `routines/daily-optimize.md` 掛每日排程,系統開始自動跑。
 
-> ⚠️ 引擎透過 **Meta Ads MCP** 操作,只能用 `is_ads_mcp_enabled: true` 的帳號。
+## 兩種引擎(依帳號 MCP 狀態選)
+
+| 帳號 MCP | 引擎 | 位置 |
+|---|---|---|
+| ✅ 已啟用(如 MTC 4.0 旗下 MYR 帳號) | Claude + Meta MCP + Routine(最省事) | 根目錄 `playbooks/` + `routines/` |
+| ❌ 鎖死(如 `AI 回覆 幫你獲客` TWD) | Marketing API 直連 Python(自己拿 token) | `api-engine/` |
+
+兩種引擎跑的是**同一套 Soo Cheng 策略**,共用 `config/`、`docs/NAMING.md`。
+`AI 回覆 幫你獲客` 帳號 MCP 被 Meta 鎖死(連讀都被擋)→ 走 `api-engine/`,見 `api-engine/README.md`。
