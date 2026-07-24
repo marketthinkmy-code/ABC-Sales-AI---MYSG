@@ -156,6 +156,11 @@ def run(round_tag):
     account = AdAccount(C.ACT_ID)
     svc = drive_service()
     imgs = list_images(svc)
+    base = f"{C.load_yaml('launch_template.yaml')['brand']['code']} | IMG | {round_tag}"
+    # live 重跑:先刪掉本輪同名舊容器(連同裡面的舊廣告),
+    # 這樣同一批圖的 [gd:] 標記會一起消失,才能用新文案/新命名重建(否則會判定「已上過」而跳過)。
+    if not C.DRY_RUN:
+        L.delete_existing_campaigns(account, base)
     done = already_uploaded_ids(account)
     new = [f for f in imgs if f["id"] not in done]
     print(f"[creative] 資料夾共 {len(imgs)} 張，已上 {len(imgs)-len(new)}，新圖 {len(new)} | DRY_RUN={C.DRY_RUN}")
@@ -163,7 +168,6 @@ def run(round_tag):
         print("  沒有新圖，結束。")
         return
 
-    base = f"{C.load_yaml('launch_template.yaml')['brand']['code']} | IMG | {round_tag}"
     adset_id = None
     if not C.DRY_RUN:
         L.ensure_page_advertiser()
@@ -171,7 +175,6 @@ def run(round_tag):
         if not winners:
             raise SystemExit("找不到合規來源(贏家 ad set),無法建容器。")
         src = winners[0]["adset_id"]
-        L.delete_existing_campaigns(account, base)
         camp = L.copy_source_campaign(account, base, src)
         adset_id = L.clone_compliant_adset(account, camp, base, src)
         print(f"  合規容器建好: campaign→ ad set {adset_id}")
