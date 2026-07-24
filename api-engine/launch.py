@@ -50,6 +50,21 @@ def delete_existing_campaigns(account, name):
         print(f"  (清理同名 campaign 略過: {e})")
 
 
+def ensure_page_advertiser():
+    """把 token 的系統使用者授予 Page 的 ADVERTISE 權限(建廣告必需)。best-effort。"""
+    from facebook_business.adobjects.user import User
+    from facebook_business.adobjects.page import Page
+    try:
+        su_id = User("me").api_get(fields=["id"])["id"]
+        Page(C.PAGE_ID).create_assigned_user(params={
+            "user": su_id, "tasks": ["ADVERTISE"], "business": C.BUSINESS_ID})
+        print(f"  ✓ 已授予系統使用者 {su_id} 對 Page {C.PAGE_ID} 的 ADVERTISE 權限")
+        return True
+    except Exception as e:
+        print(f"  ⚠️ 自動授予 Page 權限失敗(可能 token 權限不足): {e}")
+        return False
+
+
 def find_winner_ads(account, keywords):
     """依名稱關鍵字找現有贏家廣告，回傳 [{id,name,adset_id,creative_id,kw}]。"""
     ads = [{"id": a["id"], "name": a.get("name", ""), "adset_id": a.get("adset_id"),
@@ -266,6 +281,7 @@ def run(round_tag, only_angles=None):
         delete_existing_campaigns(account, base)   # 清掉上次失敗的同名空殼
         clone_mode = bool(C.CLONE_SOURCE_ADSET)
         if clone_mode:
+            ensure_page_advertiser()   # 先確保有 Page 建廣告權限
             # 先找贏家廣告，用「第一支贏家的母 ad set/campaign」當合規容器 →
             # objective 一定跟贏家一致，複製廣告不會 mismatch。
             winners = find_winner_ads(account, C.WINNER_AD_KEYWORDS)

@@ -23,6 +23,7 @@ ACCESS_TOKEN = _get("META_ACCESS_TOKEN")
 # 帳號/Page/Pixel 不是機密，直接用 discover 撈到的值當預設(Secret 有填則覆蓋)。
 AD_ACCOUNT_ID = _get("AD_ACCOUNT_ID", "1984262458861966")
 PAGE_ID = _get("PAGE_ID", "1024532770753639")
+BUSINESS_ID = _get("BUSINESS_ID", "1038935314643355")   # MTC 4.0(授 Page 權限用)
 INSTAGRAM_ID = _get("INSTAGRAM_ID") or None
 PIXEL_ID = _get("PIXEL_ID", "1338102884859245")
 CURRENCY = _get("CURRENCY", "TWD")
