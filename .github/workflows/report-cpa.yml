@@ -12,15 +12,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Run report
+      - name: Redistribute image ads across 3 ad sets
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-        run: python report_cpa.py
-      - name: Dump winner copy
-        working-directory: api-engine
-        env:
-          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
-          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-        run: python dump_copy.py
+        run: python redistribute.py --campaign "AI獲客-自動 | IMG | IMG1" --sets 3
