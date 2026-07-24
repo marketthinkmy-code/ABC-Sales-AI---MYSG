@@ -51,12 +51,16 @@ def delete_existing_campaigns(account, name):
 
 
 def source_objective():
-    """讀複製來源 ad set 的母 campaign objective，讓新 campaign 對齊(否則複製會 Objective Mismatch)。"""
-    try:
-        camp_id = AdSet(C.CLONE_SOURCE_ADSET).api_get(fields=["campaign_id"])["campaign_id"]
-        return Campaign(camp_id).api_get(fields=["objective"])["objective"]
-    except Exception:
-        return C.OBJECTIVE
+    """讀複製來源 ad set 的母 campaign objective，讓新 campaign 對齊(否則複製會 Objective Mismatch)。
+    重試數次；讀不到就丟錯，絕不亂猜(猜錯 objective 會導致複製失敗)。"""
+    last = None
+    for _ in range(4):
+        try:
+            camp_id = AdSet(C.CLONE_SOURCE_ADSET).api_get(fields=["campaign_id"])["campaign_id"]
+            return Campaign(camp_id).api_get(fields=["objective"])["objective"]
+        except Exception as e:
+            last = e
+    raise RuntimeError(f"無法讀取來源 ad set {C.CLONE_SOURCE_ADSET} 的 objective: {last}")
 
 
 def create_campaign(account, name, with_budget=True, objective=None):
