@@ -50,16 +50,43 @@ def delete_existing_campaigns(account, name):
         print(f"  (清理同名 campaign 略過: {e})")
 
 
-def create_campaign(account, name):
+def create_campaign(account, name, with_budget=True):
     params = {
         "name": name,
         "objective": C.OBJECTIVE,
         "special_ad_categories": [],
         "bid_strategy": "LOWEST_COST_WITHOUT_CAP",   # = Highest volume
-        "daily_budget": C.to_minor(C.load_yaml("launch_template.yaml")["ad_set"]["daily_budget_myr"]),
         "status": "PAUSED",
     }
+    if with_budget:
+        params["daily_budget"] = C.to_minor(
+            C.load_yaml("launch_template.yaml")["ad_set"]["daily_budget_myr"])
     return account.create_campaign(params=params)["id"]
+
+
+def clone_compliant_adset(account, campaign_id, name):
+    """複製一個現有已合規的 ad set(繼承台灣廣告主聲明)，清掉舊廣告，回傳新 ad set id。
+    這是繞過 Taiwan 'No advertiser information' 的可靠做法。"""
+    budget = C.load_yaml("launch_template.yaml")["ad_set"]["daily_budget_myr"]
+    resp = AdSet(C.CLONE_SOURCE_ADSET).create_copy(params={
+        "campaign_id": campaign_id,
+        "status_option": "PAUSED",
+    })
+    # 取新 ad set id(SDK 回傳形狀可能不同，逐一嘗試)
+    new_id = (resp.get("copied_adset_id") or resp.get("id")
+              or (resp.get("ad_object_ids") or {}).get("adset")) if hasattr(resp, "get") else None
+    if not new_id:
+        new_id = resp["copied_adset_id"]
+    new_aset = AdSet(new_id)
+    new_aset.api_update(params={"name": name, "daily_budget": C.to_minor(budget),
+                                "status": "PAUSED"})
+    # 刪掉複製過來的舊廣告，改放我們的贏家
+    for ad in new_aset.get_ads(fields=["id"]):
+        try:
+            Ad(ad["id"]).api_delete()
+        except Exception:
+            pass
+    return new_id
 
 
 def create_ad_set(account, campaign_id, name, angle):
@@ -160,9 +187,15 @@ def run(round_tag, only_angles=None):
             continue
 
         delete_existing_campaigns(account, base)   # 清掉上次失敗的同名空殼
-        camp_id = create_campaign(account, base)
+        clone_mode = bool(C.CLONE_SOURCE_ADSET)
+        # clone 模式：ad set 帶自己的預算(ABO)，campaign 不設預算
+        camp_id = create_campaign(account, base, with_budget=not clone_mode)
         try:
-            adset_id = create_ad_set(account, camp_id, base, angle)
+            if clone_mode:
+                print(f"  複製合規 ad set {C.CLONE_SOURCE_ADSET} → 繼承台灣廣告主聲明")
+                adset_id = clone_compliant_adset(account, camp_id, base)
+            else:
+                adset_id = create_ad_set(account, camp_id, base, angle)
             for i, cr in enumerate(creatives, 1):
                 vid = cr.get("video_id") or upload_video(account, cr.get("video_url") or cr["video"])
                 creative_id = create_creative(account, vid, cr)
