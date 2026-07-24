@@ -1,0 +1,43 @@
+name: Launch Ads (自动上广告)
+
+# 手動執行。照 Soo Cheng 結構建 campaign/adset/creative/ad。
+# 預設 dry run(只印不建);要真的建廣告，把 live 設 true(廣告仍是 PAUSED，要自己開)。
+on:
+  workflow_dispatch:
+    inputs:
+      round:
+        description: "本轮标记 (如 R1)"
+        required: true
+        default: "R1"
+      angles:
+        description: "角度 key 逗号分隔 (空=priority 1 的角度)"
+        required: false
+        default: ""
+      live:
+        description: "true=真的建广告(PAUSED) / false=只试跑"
+        required: true
+        default: "false"
+
+jobs:
+  launch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run launch
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          # live=true → DRY_RUN=false(真的建);否则 dry run
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python launch.py --round "${{ github.event.inputs.round }}" --angles "${{ github.event.inputs.angles }}"
