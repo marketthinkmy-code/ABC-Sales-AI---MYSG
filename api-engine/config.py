@@ -46,20 +46,20 @@ def load_yaml(name):
 
 
 def init_api():
-    """初始化 Facebook API。缺 token 就明確報錯。"""
+    """初始化 Facebook API。系統使用者 token 為必填；App ID/Secret 選填。"""
     from facebook_business.api import FacebookAdsApi
-    missing = [k for k, v in {
-        "META_APP_ID": APP_ID,
-        "META_APP_SECRET": APP_SECRET,
-        "META_ACCESS_TOKEN": ACCESS_TOKEN,
-    }.items() if not v]
-    if missing:
+    if not ACCESS_TOKEN:
         raise SystemExit(
-            f"缺少憑證: {', '.join(missing)}。\n"
-            f"請複製 api-engine/.env.example 成 .env 並填好。\n"
-            f"拿 token 步驟見 api-engine/TOKEN-SETUP.md"
+            "缺少 META_ACCESS_TOKEN。\n"
+            "請複製 api-engine/.env.example 成 .env 填 token，"
+            "或在 GitHub Secrets 設定。\n"
+            "拿 token 步驟見 api-engine/TOKEN-SETUP.md"
         )
-    FacebookAdsApi.init(APP_ID, APP_SECRET, ACCESS_TOKEN)
+    # 系統使用者 token 單獨即可運作；有 App ID/Secret 則帶上 (更安全)。
+    if APP_ID and APP_SECRET:
+        FacebookAdsApi.init(APP_ID, APP_SECRET, ACCESS_TOKEN)
+    else:
+        FacebookAdsApi.init(access_token=ACCESS_TOKEN)
 
 
 def to_minor(amount):
