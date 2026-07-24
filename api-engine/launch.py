@@ -61,6 +61,9 @@ def create_campaign(account, name, with_budget=True):
     if with_budget:
         params["daily_budget"] = C.to_minor(
             C.load_yaml("launch_template.yaml")["ad_set"]["daily_budget_myr"])
+    else:
+        # ABO(預算在 ad set)時 Meta 要求明確聲明是否共享預算
+        params["is_adset_budget_sharing_enabled"] = False
     return account.create_campaign(params=params)["id"]
 
 
