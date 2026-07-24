@@ -102,6 +102,46 @@ def clone_compliant_adset(account, campaign_id, name):
     return new_id
 
 
+def _ad_video_id(ad):
+    """從一支現有廣告的 creative 取出它用的 video_id。"""
+    cr = ad.get("creative") or {}
+    if cr.get("video_id"):
+        return cr["video_id"]
+    spec = cr.get("object_story_spec") or {}
+    return (spec.get("video_data") or {}).get("video_id")
+
+
+def copy_winner_ads(account, adset_id, winner_video_ids, base):
+    """把現有(Live App 建的)贏家廣告複製進新 ad set，沿用舊 creative → 繞過 dev-mode。"""
+    want = list(dict.fromkeys([v for v in winner_video_ids if v]))
+    found = {}
+    for ad in account.get_ads(
+            fields=["id", "creative{video_id,object_story_spec}"],
+            params={"limit": 500, "effective_status": ["ACTIVE", "PAUSED", "ADSET_PAUSED",
+                                                        "CAMPAIGN_PAUSED"]}):
+        vid = _ad_video_id(ad)
+        if vid in want and vid not in found:
+            found[vid] = ad["id"]
+        if len(found) == len(want):
+            break
+    count = 0
+    for i, vid in enumerate(want, 1):
+        src_ad = found.get(vid)
+        if not src_ad:
+            print(f"  ⚠️ 找不到用影片 {vid} 的現有廣告，跳過")
+            continue
+        resp = Ad(src_ad).create_copy(params={"adset_id": adset_id, "status_option": "PAUSED"})
+        new_ad = (resp.get("copied_ad_id") or resp.get("id")) if hasattr(resp, "get") else None
+        try:
+            if new_ad:
+                Ad(new_ad).api_update(params={"name": f"{base}-{i}"})
+        except Exception:
+            pass
+        count += 1
+        print(f"  ✓ 複製贏家廣告 (video {vid}) → ad {new_ad}")
+    return count
+
+
 def create_ad_set(account, campaign_id, name, angle):
     tmpl = C.load_yaml("launch_template.yaml")["ad_set"]
     countries = tmpl["geo"]["countries"]
@@ -221,13 +261,17 @@ def run(round_tag, only_angles=None):
             if clone_mode:
                 print(f"  複製合規 ad set {C.CLONE_SOURCE_ADSET} → 繼承台灣廣告主聲明")
                 adset_id = clone_compliant_adset(account, camp_id, base)
+                # 複製現有贏家廣告(沿用 Live App 的 creative)→ 繞過 dev-mode
+                winner_ids = [cr.get("video_id") for cr in creatives]
+                n = copy_winner_ads(account, adset_id, winner_ids, base)
+                print(f"  → 已複製 {n} 支贏家廣告到 ad set {adset_id}")
             else:
                 adset_id = create_ad_set(account, camp_id, base, angle)
-            for i, cr in enumerate(creatives, 1):
-                vid = cr.get("video_id") or upload_video(account, cr.get("video_url") or cr["video"])
-                creative_id = create_creative(account, vid, cr)
-                ad_id = create_ad(account, adset_id, creative_id, f"{base}-{i}")
-                print(f"  ✓ {base}-{i}  ad={ad_id}")
+                for i, cr in enumerate(creatives, 1):
+                    vid = cr.get("video_id") or upload_video(account, cr.get("video_url") or cr["video"])
+                    creative_id = create_creative(account, vid, cr)
+                    ad_id = create_ad(account, adset_id, creative_id, f"{base}-{i}")
+                    print(f"  ✓ {base}-{i}  ad={ad_id}")
         except Exception:
             # 建到一半失敗 → 刪掉空 campaign，不留垃圾，再把錯誤丟出來
             try:
