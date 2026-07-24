@@ -17,6 +17,9 @@ from facebook_business.adobjects.adaccount import AdAccount
 
 FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID") or "1mUL6VRHG33kcPSL372ELSrZBB_R7ogN6"
 COPY_MODEL = os.environ.get("COPY_MODEL") or "claude-sonnet-5"
+# FORCE_REBUILD=true:忽略「已上過」去重,重建資料夾裡全部圖(手動重跑/改文案時用)。
+# 排程日更時關掉(false),才能只加真正的新圖,不會每天重上一次。
+FORCE = (os.environ.get("FORCE_REBUILD") or "").strip().lower() == "true"
 
 STYLE = """你是 MTC「AI 自動回覆・幫你獲客」品牌的頂尖直效文案(Direct-Response)。
 受眾:台灣中小企業老闆——美業、健身、診所、房產、顧問、課程導師、實體店家,靠私訊(LINE/IG/FB)成交。
@@ -161,9 +164,12 @@ def run(round_tag):
     # 這樣同一批圖的 [gd:] 標記會一起消失,才能用新文案/新命名重建(否則會判定「已上過」而跳過)。
     if not C.DRY_RUN:
         L.delete_existing_campaigns(account, base)
-    done = already_uploaded_ids(account)
-    new = [f for f in imgs if f["id"] not in done]
-    print(f"[creative] 資料夾共 {len(imgs)} 張，已上 {len(imgs)-len(new)}，新圖 {len(new)} | DRY_RUN={C.DRY_RUN}")
+    if FORCE:
+        new = imgs                      # 強制重建:資料夾全部圖都當新圖
+    else:
+        done = already_uploaded_ids(account)
+        new = [f for f in imgs if f["id"] not in done]
+    print(f"[creative] 資料夾共 {len(imgs)} 張，已上 {len(imgs)-len(new)}，新圖 {len(new)} | FORCE={FORCE} DRY_RUN={C.DRY_RUN}")
     if not new:
         print("  沒有新圖，結束。")
         return
