@@ -11,13 +11,13 @@ brand:
 
 # --- 必填：目標帳號與資產 (先填這 3 個) ---------------------
 account:
-  # ⚠️ 必須是 is_ads_mcp_enabled: true 的帳號。
-  # 注意：1984262458861966 (AI 回覆 幫你獲客) 目前 MCP 未啟用，不能用。
-  ad_account_id: "FILL_ME"       # 例: 689850610799710 (SG AI 员工) — 你自己定
-  page_id: "FILL_ME"             # FB 粉專 ID (ads_get_ad_account_pages 查)
-  instagram_id: ""               # 選填，留空則只跑 FB 版位
-  pixel_id: "FILL_ME"            # 轉換追蹤 pixel/dataset
-  currency: "MYR"
+  # 走 Marketing API 直連(api-engine)，實際值從 GitHub Secrets / .env 讀。
+  # 下面是 discover.py 撈出的真實 ID，供對照。
+  ad_account_id: "1984262458861966"   # AI 回覆 幫你獲客 (TWD)
+  page_id: "1024532770753639"         # FB 粉專
+  instagram_id: ""                    # 選填
+  pixel_id: "1338102884859245"        # AI 回覆 幫你獲客 register
+  currency: "TWD"
 
 # --- Campaign 層 (照抄 Soo Cheng) ---------------------------
 campaign:
@@ -32,9 +32,9 @@ ad_set:
   optimization_goal: "OFFSITE_CONVERSIONS"
   conversion_event: "CompleteRegistration"   # = "Website registrations completed"
   attribution_spec: "7d_click_1d_view"
-  daily_budget_myr: 100                  # 起跑預算；winner 才往上加 (見 rules)
+  daily_budget_myr: 300                  # 起跑預算 (TWD/日)；winner 才往上加 (見 rules)
   geo:
-    countries: ["MY", "SG"]
+    countries: ["TW"]                    # TWD 帳號 → 台灣；要跑別的地區改這裡
   age_min: 25
   age_max: 55
   genders: "all"
@@ -45,17 +45,29 @@ ad_set:
 # 每次上新素材改這裡。命名見 docs/NAMING.md。
 creative_defaults:
   call_to_action: "SIGN_UP"
-  landing_url: "FILL_ME"                 # webinar 報名頁 (帶 UTM)
+  landing_url: "https://futureaiemployee.com/ai-closer-register"   # UTM 用 url_tags 自動帶
   display_url: ""
 
-# 待上架素材 (從 Google Drive「待上架」資料夾拉)
+# 第一批素材：用帳號現有影片(video_id 來自 discover)。文案為草稿，可再改。
 creatives:
-  - video: "ABCSALES_0724_痛点恐惧_H01.mp4"
-    primary_text: "FILL_ME (fb-ad-copy 技能出文案)"
-    headline: "FILL_ME"
-  - video: "ABCSALES_0724_权威背书_H02.mp4"
-    primary_text: "FILL_ME"
-    headline: "FILL_ME"
+  - video_id: "1468028567855207"          # 視頻三 很多老闆每天看營收
+    primary_text: |
+      很多老闆每天盯著營收，卻沒發現：真正漏掉的錢，是那些「沒被即時回覆」的客戶。
+      AI 員工 24 小時自動回覆、自動跟進、自動幫你獲客——你睡覺，它也在幫你成交。
+      👉 免費登記，看它怎麼把詢問變訂單：
+    headline: "AI 幫你自動回覆、自動獲客"
+  - video_id: "1018183457846164"          # 視頻二 我問你（二改
+    primary_text: |
+      我問你：客戶傳訊息來，你多久回？超過 5 分鐘，成交率就掉一半。
+      AI Closer 幫你秒回、篩選、跟進，把流量變成真正的客戶。
+      👉 名額有限，免費登記：
+    headline: "客戶秒回，成交翻倍"
+  - video_id: "2450851268748645"          # 5-hook
+    primary_text: |
+      還在用人手回訊息、手動跟進？你正在把錢送給對手。
+      AI 員工幫你自動獲客：成本更低、速度更快、24 小時不打烊。
+      👉 免費登記，親眼看它運作：
+    headline: "讓 AI 幫你做工、幫你獲客"
 
 # --- 上架安全設定 ------------------------------------------
 launch:
