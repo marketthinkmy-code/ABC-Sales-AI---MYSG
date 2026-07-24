@@ -19,9 +19,23 @@ from facebook_business.adobjects.advideo import AdVideo
 
 
 def upload_video(account, path):
-    """上传本地影片，回传 video_id。素材已在 Meta 的话可跳过、直接给 video_id。"""
-    video = account.create_ad_video(params={"source": path})
+    """上传影片，回传 video_id。CI 環境沒有本機檔，優先用 URL。
+    path 是 http(s) 連結 → Meta 直接抓；否則當本機路徑上傳。"""
+    if str(path).startswith("http"):
+        video = account.create_ad_video(params={"file_url": path})
+    else:
+        video = account.create_ad_video(params={"source": path})
     return video["id"]
+
+
+def _custom_event_type():
+    """依 CONVERSION_EVENT / OBJECTIVE 決定 pixel 事件枚舉。"""
+    ev = (C.CONVERSION_EVENT or "").lower()
+    if "lead" in ev or C.OBJECTIVE == "OUTCOME_LEADS":
+        return "LEAD"
+    if "purchase" in ev:
+        return "PURCHASE"
+    return "COMPLETE_REGISTRATION"
 
 
 def create_campaign(account, name):
@@ -55,7 +69,7 @@ def create_ad_set(account, campaign_id, name, angle):
         "optimization_goal": "OFFSITE_CONVERSIONS",
         "promoted_object": {
             "pixel_id": C.PIXEL_ID,
-            "custom_event_type": "COMPLETE_REGISTRATION",
+            "custom_event_type": _custom_event_type(),
         },
         "targeting": targeting,
         "status": "PAUSED",
@@ -109,6 +123,14 @@ def run(round_tag, only_angles=None):
 
     print(f"[launch] 帳號 {C.AD_ACCOUNT_ID} | {len(angles)} 角度 | 每组 {len(creatives)} 支素材 | DRY_RUN={C.DRY_RUN}")
 
+    # 上架前檢查必填，缺了就明確報錯(避免建到一半失敗)
+    if not C.DRY_RUN:
+        missing = [k for k, v in {"PAGE_ID": C.PAGE_ID, "PIXEL_ID": C.PIXEL_ID,
+                                  "LANDING_URL": C.LANDING_URL}.items() if not v]
+        if missing:
+            raise SystemExit(f"缺少必填: {', '.join(missing)}。先跑 discover.py 取得 ID，"
+                             f"填進 Secrets 再上架。")
+
     for angle in angles:
         base = f"{brand} | {angle['key']} | {round_tag}"
         if C.DRY_RUN:
@@ -118,7 +140,7 @@ def run(round_tag, only_angles=None):
         camp_id = create_campaign(account, base)
         adset_id = create_ad_set(account, camp_id, base, angle)
         for i, cr in enumerate(creatives, 1):
-            vid = cr.get("video_id") or upload_video(account, cr["video"])
+            vid = cr.get("video_id") or upload_video(account, cr.get("video_url") or cr["video"])
             creative_id = create_creative(account, vid, cr)
             ad_id = create_ad(account, adset_id, creative_id, f"{base}-{i}")
             print(f"  ✓ {base}-{i}  ad={ad_id}")

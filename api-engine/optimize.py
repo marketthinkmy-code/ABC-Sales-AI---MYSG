@@ -26,15 +26,27 @@ def fetch_campaigns(account):
         if insights:
             row = insights[0]
             spend = float(row.get("spend", 0) or 0)
-            for a in (row.get("actions") or []):
-                if a["action_type"] in ("offsite_conversion.fb_pixel_complete_registration",
-                                        "complete_registration", "lead", "onsite_conversion.lead_grouped"):
-                    results += int(float(a["value"]))
+            # 只認「一種」轉換事件，避免同一筆轉換被多個 action_type 重複計。
+            # 取 CPA 最能代表的那個事件，results 用『同一個』事件的數量 → spend/results 才會對得上 CPA。
+            best_type = None
             for cpa in (row.get("cost_per_action_type") or []):
-                if "registration" in cpa["action_type"] or "lead" in cpa["action_type"]:
+                at = cpa["action_type"]
+                if "registration" in at or "lead" in at or "purchase" in at:
                     cpl = float(cpa["value"])
-        if cpl is None and results:
-            cpl = spend / results
+                    best_type = at
+                    break
+            actions = {a["action_type"]: int(float(a["value"])) for a in (row.get("actions") or [])}
+            if best_type:
+                results = actions.get(best_type, 0)
+            else:
+                # 沒有 CPA 欄位時的退路：挑單一最相關事件，不加總重複類型
+                for at in ("offsite_conversion.fb_pixel_complete_registration",
+                           "complete_registration", "onsite_conversion.lead_grouped", "lead"):
+                    if at in actions:
+                        results = actions[at]
+                        break
+                if results:
+                    cpl = spend / results
         rows.append({
             "obj": c, "id": c["id"], "name": c["name"],
             "daily_budget": float(c.get("daily_budget", 0) or 0) / 100.0,
