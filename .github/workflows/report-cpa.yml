@@ -1,0 +1,20 @@
+name: Report CPA (campaign lifetime spend)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run report
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+        run: python report_cpa.py
