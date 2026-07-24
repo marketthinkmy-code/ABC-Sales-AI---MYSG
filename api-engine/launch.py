@@ -50,10 +50,19 @@ def delete_existing_campaigns(account, name):
         print(f"  (清理同名 campaign 略過: {e})")
 
 
-def create_campaign(account, name, with_budget=True):
+def source_objective():
+    """讀複製來源 ad set 的母 campaign objective，讓新 campaign 對齊(否則複製會 Objective Mismatch)。"""
+    try:
+        camp_id = AdSet(C.CLONE_SOURCE_ADSET).api_get(fields=["campaign_id"])["campaign_id"]
+        return Campaign(camp_id).api_get(fields=["objective"])["objective"]
+    except Exception:
+        return C.OBJECTIVE
+
+
+def create_campaign(account, name, with_budget=True, objective=None):
     params = {
         "name": name,
-        "objective": C.OBJECTIVE,
+        "objective": objective or C.OBJECTIVE,
         "special_ad_categories": [],
         "status": "PAUSED",
     }
@@ -192,8 +201,9 @@ def run(round_tag, only_angles=None):
 
         delete_existing_campaigns(account, base)   # 清掉上次失敗的同名空殼
         clone_mode = bool(C.CLONE_SOURCE_ADSET)
-        # clone 模式：ad set 帶自己的預算(ABO)，campaign 不設預算
-        camp_id = create_campaign(account, base, with_budget=not clone_mode)
+        # clone 模式：ad set 帶自己的預算(ABO)，campaign 不設預算，objective 對齊來源
+        obj = source_objective() if clone_mode else None
+        camp_id = create_campaign(account, base, with_budget=not clone_mode, objective=obj)
         try:
             if clone_mode:
                 print(f"  複製合規 ad set {C.CLONE_SOURCE_ADSET} → 繼承台灣廣告主聲明")
