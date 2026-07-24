@@ -88,9 +88,13 @@ def create_ad_set(account, campaign_id, name, angle):
         "status": "PAUSED",
         # CBO 在 campaign 层下预算，adset 不再设 daily_budget
     }
-    # 台灣法規：投放含台灣地區必須聲明 regional regulated category。
+    # 台灣法規：投放含台灣地區必須聲明 regional regulated category + 廣告主/付款方。
     if "TW" in countries:
         params["regional_regulated_categories"] = ["TAIWAN_UNIVERSAL"]
+        if C.DSA_BENEFICIARY:
+            params["dsa_beneficiary"] = C.DSA_BENEFICIARY
+        if C.DSA_PAYOR:
+            params["dsa_payor"] = C.DSA_PAYOR
     return account.create_ad_set(params=params)["id"]
 
 

@@ -37,6 +37,10 @@ URL_TAGS = _get(
     "utm_source={{site_source_name}}&utm_medium={{adset.name}}"
     "&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{placement}}",
 )
+# 台灣法規：廣告主/付款方(來自 Business Manager 已驗證的實體)。
+# 建 TW ad set 時帶上，否則 Meta 擋「No advertiser information for Taiwan ads」。
+DSA_BENEFICIARY = _get("DSA_BENEFICIARY", "ABC SALESBOT SDN. BHD.")
+DSA_PAYOR = _get("DSA_PAYOR", "ABC SALESBOT SDN. BHD.")
 
 # --- 優化門檻 (數字, TWD) ---
 # 依 AI 回覆 幫你獲客 帳號設定：目標 CPA 180，可接受到 240。
