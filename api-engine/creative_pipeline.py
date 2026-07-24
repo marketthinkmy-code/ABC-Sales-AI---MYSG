@@ -192,7 +192,9 @@ def run(round_tag):
                 print(f"\n===== {fname} =====\n[標題] {hl}\n[文案] ({len(pt)} 字 / {len(pt.splitlines())} 行)\n{pt}\n")
                 continue
             print(f"  ── {fname}\n     標題: {hl}\n     文案: {pt[:60]}...")
-            name = f"{base} | {fname[:20]} [gd:{fid}]"
+            # 依「痛點」命名:用 AI 產出的 headline 當廣告名主體,[gd:] 標記留著去重
+            theme = re.sub(r"\s+", "", hl)[:24] or fname[:16]
+            name = f"AI獲客 | IMG | {theme} [gd:{fid}]"
             try:
                 ad_id = create_image_ad(account, adset_id, upload_image(account, p), pt, hl, name)
                 n += 1
