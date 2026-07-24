@@ -188,9 +188,10 @@ def run(round_tag):
             except Exception as e:
                 print(f"  ⚠️ {fname} 下載/寫文案失敗,跳過: {e}")
                 continue
-            print(f"  ── {fname}\n     標題: {hl}\n     文案: {pt[:60]}...")
             if C.DRY_RUN:
+                print(f"\n===== {fname} =====\n[標題] {hl}\n[文案] ({len(pt)} 字 / {len(pt.splitlines())} 行)\n{pt}\n")
                 continue
+            print(f"  ── {fname}\n     標題: {hl}\n     文案: {pt[:60]}...")
             name = f"{base} | {fname[:20]} [gd:{fid}]"
             try:
                 ad_id = create_image_ad(account, adset_id, upload_image(account, p), pt, hl, name)
