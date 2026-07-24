@@ -15,11 +15,28 @@ def run():
     print(f"[discover] 帳號 {C.AD_ACCOUNT_ID}\n")
 
     print("=== 可投放的 Facebook 粉專 (PAGE_ID) ===")
+    found_page = False
     try:
         for p in account.get_promote_pages(fields=["id", "name"]):
             print(f"  PAGE_ID={p['id']}  |  {p.get('name','')}")
+            found_page = True
     except Exception as e:
-        print(f"  (讀取失敗: {e})")
+        print(f"  (promote_pages 讀取失敗: {e})")
+    # 退路：從現有廣告的 creative 反查 page_id(最可靠，因為現在的廣告就綁著它)
+    if not found_page:
+        print("  promote_pages 為空，改從現有廣告 creative 反查:")
+        try:
+            seen = set()
+            for cr in account.get_ad_creatives(fields=["object_story_spec"], params={"limit": 25}):
+                spec = cr.get("object_story_spec") or {}
+                pid = spec.get("page_id")
+                if pid and pid not in seen:
+                    seen.add(pid)
+                    print(f"  PAGE_ID={pid}  (來自現有廣告)")
+            if not seen:
+                print("  (現有廣告也查不到 page_id)")
+        except Exception as e:
+            print(f"  (creative 反查失敗: {e})")
 
     print("\n=== Pixel / 資料集 (PIXEL_ID) ===")
     try:
