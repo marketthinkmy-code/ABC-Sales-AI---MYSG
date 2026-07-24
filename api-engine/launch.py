@@ -51,9 +51,11 @@ def delete_existing_campaigns(account, name):
 
 
 def find_winner_ads(account, keywords):
-    """依名稱關鍵字找現有贏家廣告，回傳 [{id,name,adset_id,kw}]。"""
-    ads = [{"id": a["id"], "name": a.get("name", ""), "adset_id": a.get("adset_id")}
-           for a in account.get_ads(fields=["id", "name", "adset_id"], params={"limit": 1000})]
+    """依名稱關鍵字找現有贏家廣告，回傳 [{id,name,adset_id,creative_id,kw}]。"""
+    ads = [{"id": a["id"], "name": a.get("name", ""), "adset_id": a.get("adset_id"),
+            "creative_id": (a.get("creative") or {}).get("id")}
+           for a in account.get_ads(fields=["id", "name", "adset_id", "creative"],
+                                     params={"limit": 1000})]
     print(f"  掃到 {len(ads)} 支現有廣告")
     picked = []
     for kw in keywords:
@@ -123,24 +125,31 @@ def clone_compliant_adset(account, campaign_id, name, src_adset_id):
 
 
 def copy_winner_ads(account, adset_id, winners, base):
-    """把已找到的贏家廣告複製進新 ad set，沿用舊 creative → 繞過 dev-mode。
-    每支獨立 try/except：某支 objective 不合就跳過，不影響其他。"""
+    """在新 ad set 建廣告，直接『引用』贏家的現有 creative_id → 不建新貼文，
+    繞過 dev-mode 與 Page 權限。每支獨立 try/except。"""
     count = 0
     for w in winners:
         kw = w["kw"]
+        cid = w.get("creative_id")
+        if not cid:
+            try:
+                cid = (Ad(w["id"]).api_get(fields=["creative"]).get("creative") or {}).get("id")
+            except Exception:
+                cid = None
+        if not cid:
+            print(f"  ⚠️ 贏家「{kw}」取不到 creative_id，跳過")
+            continue
         try:
-            resp = Ad(w["id"]).create_copy(params={"adset_id": adset_id,
-                                                   "status_option": "PAUSED"})
-            new_ad = (resp.get("copied_ad_id") or resp.get("id")) if hasattr(resp, "get") else None
-            if new_ad:
-                try:
-                    Ad(new_ad).api_update(params={"name": f"{base} | {kw}"})
-                except Exception:
-                    pass
+            new = account.create_ad(params={
+                "name": f"{base} | {kw}",
+                "adset_id": adset_id,
+                "creative": {"creative_id": cid},
+                "status": "PAUSED",
+            })
             count += 1
-            print(f"  ✓ 複製贏家「{kw}」(來源 ad {w['id']}) → ad {new_ad}")
+            print(f"  ✓ 建贏家「{kw}」(引用 creative {cid}) → ad {new['id']}")
         except Exception as e:
-            print(f"  ⚠️ 贏家「{kw}」複製失敗(可能 objective 不合)，跳過: {e}")
+            print(f"  ⚠️ 贏家「{kw}」建廣告失敗，跳過: {e}")
     return count
 
 
