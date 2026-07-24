@@ -9,7 +9,11 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 
 
 def _get(key, default=None):
-    return os.environ.get(key, default)
+    # 空字串 (GitHub 未設的 Secret 會變空字串) 一律當作沒填，回 default。
+    val = os.environ.get(key)
+    if val is None or val.strip() == "":
+        return default
+    return val
 
 
 # --- 憑證 / 帳號 ---
