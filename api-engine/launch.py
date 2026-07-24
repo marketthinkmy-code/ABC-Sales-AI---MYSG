@@ -55,14 +55,15 @@ def create_campaign(account, name, with_budget=True):
         "name": name,
         "objective": C.OBJECTIVE,
         "special_ad_categories": [],
-        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",   # = Highest volume
         "status": "PAUSED",
     }
     if with_budget:
+        # CBO：預算+出價策略在 campaign 層
+        params["bid_strategy"] = "LOWEST_COST_WITHOUT_CAP"   # = Highest volume
         params["daily_budget"] = C.to_minor(
             C.load_yaml("launch_template.yaml")["ad_set"]["daily_budget_myr"])
     else:
-        # ABO(預算在 ad set)時 Meta 要求明確聲明是否共享預算
+        # ABO：預算+出價策略在 ad set 層；campaign 不設 bid_strategy(否則 Meta 要求 campaign budget)
         params["is_adset_budget_sharing_enabled"] = False
     return account.create_campaign(params=params)["id"]
 
