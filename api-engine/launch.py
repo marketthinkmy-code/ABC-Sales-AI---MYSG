@@ -94,7 +94,9 @@ def create_creative(account, video_id, cr):
     }
     if C.INSTAGRAM_ID:
         story["instagram_actor_id"] = C.INSTAGRAM_ID
-    params = {"name": cr["video"], "object_story_spec": story}
+    params = {"name": cr.get("video") or cr.get("video_id"), "object_story_spec": story}
+    if C.URL_TAGS:
+        params["url_tags"] = C.URL_TAGS   # UTM 動態標籤(campaign/adset/ad 名自動帶入)
     return account.create_ad_creative(params=params)["id"]
 
 

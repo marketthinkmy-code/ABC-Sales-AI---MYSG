@@ -20,16 +20,23 @@ def _get(key, default=None):
 APP_ID = _get("META_APP_ID")
 APP_SECRET = _get("META_APP_SECRET")
 ACCESS_TOKEN = _get("META_ACCESS_TOKEN")
+# 帳號/Page/Pixel 不是機密，直接用 discover 撈到的值當預設(Secret 有填則覆蓋)。
 AD_ACCOUNT_ID = _get("AD_ACCOUNT_ID", "1984262458861966")
-PAGE_ID = _get("PAGE_ID")
+PAGE_ID = _get("PAGE_ID", "1024532770753639")
 INSTAGRAM_ID = _get("INSTAGRAM_ID") or None
-PIXEL_ID = _get("PIXEL_ID")
+PIXEL_ID = _get("PIXEL_ID", "1338102884859245")
 CURRENCY = _get("CURRENCY", "TWD")
 
 # --- 漏斗 ---
 OBJECTIVE = _get("OBJECTIVE", "OUTCOME_SALES")
 CONVERSION_EVENT = _get("CONVERSION_EVENT", "CompleteRegistration")
-LANDING_URL = _get("LANDING_URL")
+LANDING_URL = _get("LANDING_URL", "https://futureaiemployee.com/ai-closer-register")
+# Meta 動態網址參數(用 {{...}} 巨集)。放 url_tags，Meta 才會把 campaign/adset/ad 名帶進 UTM。
+URL_TAGS = _get(
+    "URL_TAGS",
+    "utm_source={{site_source_name}}&utm_medium={{adset.name}}"
+    "&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{placement}}",
+)
 
 # --- 優化門檻 (數字, TWD) ---
 # 依 AI 回覆 幫你獲客 帳號設定：目標 CPA 180，可接受到 240。
