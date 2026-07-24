@@ -138,20 +138,33 @@ def create_ad_set(account, campaign_id, name, angle):
     return account.create_ad_set(params=params)["id"]
 
 
+def video_thumbnail(video_id):
+    """取影片縮圖 uri(Meta 建影片 creative 時必填 image_url)。"""
+    try:
+        thumbs = list(AdVideo(video_id).get_thumbnails(fields=["uri", "is_preferred"]))
+        if not thumbs:
+            return None
+        pref = [t for t in thumbs if t.get("is_preferred")]
+        return (pref[0] if pref else thumbs[0]).get("uri")
+    except Exception:
+        return None
+
+
 def create_creative(account, video_id, cr):
     tmpl = C.load_yaml("launch_template.yaml")["creative_defaults"]
-    story = {
-        "page_id": C.PAGE_ID,
-        "video_data": {
-            "video_id": video_id,
-            "message": cr["primary_text"],
-            "title": cr["headline"],
-            "call_to_action": {
-                "type": tmpl["call_to_action"],
-                "value": {"link": C.LANDING_URL},
-            },
+    video_data = {
+        "video_id": video_id,
+        "message": cr["primary_text"],
+        "title": cr["headline"],
+        "call_to_action": {
+            "type": tmpl["call_to_action"],
+            "value": {"link": C.LANDING_URL},
         },
     }
+    thumb = video_thumbnail(video_id)
+    if thumb:
+        video_data["image_url"] = thumb   # Meta 要求影片縮圖
+    story = {"page_id": C.PAGE_ID, "video_data": video_data}
     if C.INSTAGRAM_ID:
         story["instagram_actor_id"] = C.INSTAGRAM_ID
     params = {"name": cr.get("video") or cr.get("video_id"), "object_story_spec": story}
