@@ -38,6 +38,18 @@ def _custom_event_type():
     return "COMPLETE_REGISTRATION"
 
 
+def delete_existing_campaigns(account, name):
+    """刪掉同名的 PAUSED campaign(上次失敗留下的空殼)，讓 launch 可重跑不留垃圾。"""
+    try:
+        for c in account.get_campaigns(fields=["id", "name", "effective_status"],
+                                       params={"limit": 200}):
+            if c.get("name") == name and c.get("effective_status") in ("PAUSED", "CAMPAIGN_PAUSED"):
+                Campaign(c["id"]).api_delete()
+                print(f"  (清掉同名空 campaign {c['id']})")
+    except Exception as e:
+        print(f"  (清理同名 campaign 略過: {e})")
+
+
 def create_campaign(account, name):
     params = {
         "name": name,
@@ -52,8 +64,9 @@ def create_campaign(account, name):
 
 def create_ad_set(account, campaign_id, name, angle):
     tmpl = C.load_yaml("launch_template.yaml")["ad_set"]
+    countries = tmpl["geo"]["countries"]
     targeting = {
-        "geo_locations": {"countries": tmpl["geo"]["countries"]},
+        "geo_locations": {"countries": countries},
         "age_min": tmpl["age_min"],
         "age_max": tmpl["age_max"],
     }
@@ -75,6 +88,9 @@ def create_ad_set(account, campaign_id, name, angle):
         "status": "PAUSED",
         # CBO 在 campaign 层下预算，adset 不再设 daily_budget
     }
+    # 台灣法規：投放含台灣地區必須聲明 regional regulated category。
+    if "TW" in countries:
+        params["regional_regulated_categories"] = ["TAIWAN_UNIVERSAL"]
     return account.create_ad_set(params=params)["id"]
 
 
@@ -139,13 +155,23 @@ def run(round_tag, only_angles=None):
             print(f"  [dry] 会建 campaign: {base} + {len(creatives)} 支广告 (全 PAUSED)")
             continue
 
+        delete_existing_campaigns(account, base)   # 清掉上次失敗的同名空殼
         camp_id = create_campaign(account, base)
-        adset_id = create_ad_set(account, camp_id, base, angle)
-        for i, cr in enumerate(creatives, 1):
-            vid = cr.get("video_id") or upload_video(account, cr.get("video_url") or cr["video"])
-            creative_id = create_creative(account, vid, cr)
-            ad_id = create_ad(account, adset_id, creative_id, f"{base}-{i}")
-            print(f"  ✓ {base}-{i}  ad={ad_id}")
+        try:
+            adset_id = create_ad_set(account, camp_id, base, angle)
+            for i, cr in enumerate(creatives, 1):
+                vid = cr.get("video_id") or upload_video(account, cr.get("video_url") or cr["video"])
+                creative_id = create_creative(account, vid, cr)
+                ad_id = create_ad(account, adset_id, creative_id, f"{base}-{i}")
+                print(f"  ✓ {base}-{i}  ad={ad_id}")
+        except Exception:
+            # 建到一半失敗 → 刪掉空 campaign，不留垃圾，再把錯誤丟出來
+            try:
+                Campaign(camp_id).api_delete()
+                print(f"  (失敗，已刪除半成品 campaign {camp_id})")
+            except Exception:
+                pass
+            raise
         print(f"  → campaign {camp_id} 建好 (PAUSED)。检查无误后用 Ads Manager 或 optimize 开 ACTIVE。")
 
 
