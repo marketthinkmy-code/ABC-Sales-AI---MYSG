@@ -59,6 +59,31 @@ def run():
     except Exception as e:
         print(f"  (讀取失敗或無: {e})")
 
+    print("\n=== 現有廣告組合的合規欄位(台灣 advertiser 聲明用) ===")
+    try:
+        from facebook_business.adobjects.campaign import Campaign
+        fields = ["id", "name", "regional_regulated_categories",
+                  "dsa_beneficiary", "dsa_payor", "promoted_object", "targeting"]
+        shown = 0
+        for camp in account.get_campaigns(fields=["id", "effective_status"], params={"limit": 30}):
+            if camp.get("effective_status") != "ACTIVE":
+                continue
+            for aset in Campaign(camp["id"]).get_ad_sets(fields=fields, params={"limit": 2}):
+                print(f"  adset {aset.get('id')} | {aset.get('name','')[:30]}")
+                print(f"    regional_regulated_categories = {aset.get('regional_regulated_categories')}")
+                print(f"    dsa_beneficiary = {aset.get('dsa_beneficiary')}")
+                print(f"    dsa_payor       = {aset.get('dsa_payor')}")
+                tgt = aset.get('targeting') or {}
+                print(f"    targeting.keys  = {list(tgt.keys())}")
+                shown += 1
+                break
+            if shown >= 2:
+                break
+        if not shown:
+            print("  (找不到 ACTIVE 廣告組合)")
+    except Exception as e:
+        print(f"  (讀取失敗: {e})")
+
     print("\n填好上面的值到 GitHub Secrets 或 .env，就能跑 launch.py 自動上廣告。")
 
 
