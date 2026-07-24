@@ -56,7 +56,7 @@ WINNER_AD_KEYWORDS = [
 # 依 AI 回覆 幫你獲客 帳號設定：目標 CPA 180，可接受到 240。
 # Secret 有填就用 Secret，沒填就用這裡的預設(這些不是機密，放預設即可)。
 TARGET_CPL = float(_get("TARGET_CPL", 180))
-KILL_CPL = float(_get("KILL_CPL", 240))       # CPA 高於此 → 關 (你說可接受到 240)
+KILL_CPL = float(_get("KILL_CPL", 290))       # CPA 高於此 → 關；= RM40 換算 TWD(匯率約7.25)
 SCALE_CPL = float(_get("SCALE_CPL", 180))     # CPA 低於此 → 加預算
 BUDGET_STEP_PCT = float(_get("BUDGET_STEP_PCT", 20))
 MAX_DAILY_BUDGET = float(_get("MAX_DAILY_BUDGET", 2600))
