@@ -15,8 +15,8 @@ import config as C
 import launch as L
 from facebook_business.adobjects.adaccount import AdAccount
 
-FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID", "1mUL6VRHG33kcPSL372ELSrZBB_R7ogN6")
-COPY_MODEL = os.environ.get("COPY_MODEL", "claude-sonnet-5")
+FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID") or "1mUL6VRHG33kcPSL372ELSrZBB_R7ogN6"
+COPY_MODEL = os.environ.get("COPY_MODEL") or "claude-sonnet-5"
 
 STYLE = """你是 MTC「AI 自動回覆・幫你獲客」品牌的廣告文案。受眾:台灣中小企業老闆、店家。
 產品:一個 AI 員工,能 24 小時自動回覆客戶訊息(LINE/IG/FB)、自動跟進、把詢問推進到成交。
