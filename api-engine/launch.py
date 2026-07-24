@@ -102,43 +102,29 @@ def clone_compliant_adset(account, campaign_id, name):
     return new_id
 
 
-def _ad_video_id(ad):
-    """從一支現有廣告的 creative 取出它用的 video_id。"""
-    cr = ad.get("creative") or {}
-    if cr.get("video_id"):
-        return cr["video_id"]
-    spec = cr.get("object_story_spec") or {}
-    return (spec.get("video_data") or {}).get("video_id")
-
-
-def copy_winner_ads(account, adset_id, winner_video_ids, base):
-    """把現有(Live App 建的)贏家廣告複製進新 ad set，沿用舊 creative → 繞過 dev-mode。"""
-    want = list(dict.fromkeys([v for v in winner_video_ids if v]))
-    found = {}
-    for ad in account.get_ads(
-            fields=["id", "creative{video_id,object_story_spec}"],
-            params={"limit": 500, "effective_status": ["ACTIVE", "PAUSED", "ADSET_PAUSED",
-                                                        "CAMPAIGN_PAUSED"]}):
-        vid = _ad_video_id(ad)
-        if vid in want and vid not in found:
-            found[vid] = ad["id"]
-        if len(found) == len(want):
-            break
+def copy_winner_ads(account, adset_id, keywords, base):
+    """依名稱關鍵字找現有贏家廣告，複製進新 ad set，沿用舊 creative → 繞過 dev-mode。"""
+    # 掃帳號現有廣告的 id+name，逐關鍵字找第一個含該 hook 的廣告
+    all_ads = []
+    for ad in account.get_ads(fields=["id", "name"], params={"limit": 1000}):
+        all_ads.append({"id": ad["id"], "name": ad.get("name", "")})
+    print(f"  掃到 {len(all_ads)} 支現有廣告，開始比對關鍵字")
     count = 0
-    for i, vid in enumerate(want, 1):
-        src_ad = found.get(vid)
-        if not src_ad:
-            print(f"  ⚠️ 找不到用影片 {vid} 的現有廣告，跳過")
+    for i, kw in enumerate(keywords, 1):
+        match = next((a for a in all_ads if kw in a["name"]), None)
+        if not match:
+            print(f"  ⚠️ 找不到名稱含「{kw}」的現有廣告，跳過")
             continue
-        resp = Ad(src_ad).create_copy(params={"adset_id": adset_id, "status_option": "PAUSED"})
+        resp = Ad(match["id"]).create_copy(params={"adset_id": adset_id,
+                                                   "status_option": "PAUSED"})
         new_ad = (resp.get("copied_ad_id") or resp.get("id")) if hasattr(resp, "get") else None
         try:
             if new_ad:
-                Ad(new_ad).api_update(params={"name": f"{base}-{i}"})
+                Ad(new_ad).api_update(params={"name": f"{base} | {kw}"})
         except Exception:
             pass
         count += 1
-        print(f"  ✓ 複製贏家廣告 (video {vid}) → ad {new_ad}")
+        print(f"  ✓ 複製贏家「{kw}」(來源 ad {match['id']}) → ad {new_ad}")
     return count
 
 
@@ -261,9 +247,8 @@ def run(round_tag, only_angles=None):
             if clone_mode:
                 print(f"  複製合規 ad set {C.CLONE_SOURCE_ADSET} → 繼承台灣廣告主聲明")
                 adset_id = clone_compliant_adset(account, camp_id, base)
-                # 複製現有贏家廣告(沿用 Live App 的 creative)→ 繞過 dev-mode
-                winner_ids = [cr.get("video_id") for cr in creatives]
-                n = copy_winner_ads(account, adset_id, winner_ids, base)
+                # 複製現有贏家廣告(依名稱關鍵字，沿用 Live App 的 creative)→ 繞過 dev-mode
+                n = copy_winner_ads(account, adset_id, C.WINNER_AD_KEYWORDS, base)
                 print(f"  → 已複製 {n} 支贏家廣告到 ad set {adset_id}")
             else:
                 adset_id = create_ad_set(account, camp_id, base, angle)

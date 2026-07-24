@@ -43,6 +43,13 @@ DSA_PAYOR = _get("DSA_PAYOR", "ABC SALESBOT SDN. BHD.")
 # 台灣合規繞道：複製這個「現有、已合規」的 ad set(自動繼承廣告主聲明)，
 # 清掉舊廣告後換上贏家素材。設空字串則走從零建 ad set 的舊流程。
 CLONE_SOURCE_ADSET = _get("CLONE_SOURCE_ADSET", "120245783114710658")
+# 贏家廣告用「名稱關鍵字」比對(現有廣告名帶這些 hook)，複製它們(沿用 Live App creative)。
+WINNER_AD_KEYWORDS = [
+    s.strip() for s in _get(
+        "WINNER_AD_KEYWORDS",
+        "跑過來搶電話,幾點下班,30天挑戰,你有用過 LINE,如果你還在用"
+    ).split(",") if s.strip()
+]
 
 # --- 優化門檻 (數字, TWD) ---
 # 依 AI 回覆 幫你獲客 帳號設定：目標 CPA 180，可接受到 240。
