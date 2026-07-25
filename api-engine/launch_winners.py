@@ -48,9 +48,10 @@ def make_cbo_campaign(account, name):
 
 def set_broad(adset_id):
     tmpl = C.load_yaml("launch_template.yaml")["ad_set"]
+    # Advantage+ audience 下,年齡只是「建議」且 max 不能低於 65,故設 25~65。
     AdSet(adset_id).api_update(params={"targeting": {
         "geo_locations": {"countries": tmpl["geo"]["countries"]},
-        "age_min": tmpl.get("age_min", 25), "age_max": tmpl.get("age_max", 55),
+        "age_min": tmpl.get("age_min", 25), "age_max": 65,
         "targeting_automation": {"advantage_audience": 1},
     }})
 
