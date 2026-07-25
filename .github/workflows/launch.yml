@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Run launch
+      - name: Launch winners campaign (CBO, ROAS>=3)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
@@ -38,6 +38,5 @@ jobs:
           LANDING_URL: ${{ secrets.LANDING_URL }}
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
-          # live=true → DRY_RUN=false(真的建);否则 dry run
-          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
-        run: python launch.py --round "${{ github.event.inputs.round }}" --angles "${{ github.event.inputs.angles }}"
+          WINNER_BUDGET: "2000"
+        run: python launch_winners.py
