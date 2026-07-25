@@ -28,18 +28,18 @@ def norm(s):
     return re.sub(r"\s+", " ", (s or "")).strip()
 
 
-# ---------- 1. 讀買單 Sheet ----------
+# ---------- 1. 讀買單 Sheet（用 Drive 匯出 CSV,沿用已驗證的 drive.readonly 權限）----------
 def read_buyers():
+    import csv, io
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
     info = json.loads(os.environ["GOOGLE_SA_JSON"])
     creds = service_account.Credentials.from_service_account_info(
-        info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"])
-    svc = build("sheets", "v4", credentials=creds)
-    meta = svc.spreadsheets().get(spreadsheetId=SHEET_ID).execute()
-    title = meta["sheets"][0]["properties"]["title"]
-    vals = svc.spreadsheets().values().get(
-        spreadsheetId=SHEET_ID, range=title).execute().get("values", [])
+        info, scopes=["https://www.googleapis.com/auth/drive.readonly"])
+    drive = build("drive", "v3", credentials=creds)
+    raw = drive.files().export(fileId=SHEET_ID, mimeType="text/csv").execute()
+    text = raw.decode("utf-8") if isinstance(raw, bytes) else raw
+    vals = list(csv.reader(io.StringIO(text)))
     hdr = hidx = None
     for i, row in enumerate(vals):
         joined = " ".join(c or "" for c in row)
