@@ -1,15 +1,15 @@
-name: Report CPA (campaign lifetime spend)
+name: Weekly CPA Dashboard
 
-# 分支上暫時借用這個(已註冊在 main 的)workflow 來按需跑 weekly_cpa,
-# 正式排程走 weekly-cpa.yml(合併到 main 後每週三自動跑)。
 on:
   workflow_dispatch: {}
+  schedule:
+    - cron: "0 2 * * 3"   # 每週三 UTC 02:00 = 台北/大馬 10:00
 
 permissions:
   contents: write
 
 jobs:
-  report:
+  cpa:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,5 +31,5 @@ jobs:
           git config user.name "claude-bot"
           git config user.email "noreply@anthropic.com"
           git add reports/
-          git commit -m "CPA dashboard $(date -u +%F)" || echo "no changes"
+          git commit -m "weekly CPA dashboard $(date -u +%F)" || echo "no changes"
           git push
