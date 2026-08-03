@@ -26,4 +26,5 @@ jobs:
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
           DRY_RUN: "false"
+          FORCE_REBUILD: "true"
         run: python video_pipeline.py --round VID1

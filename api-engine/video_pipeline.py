@@ -17,6 +17,7 @@ from facebook_business.adobjects.advideo import AdVideo
 
 FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID") or "1mUL6VRHG33kcPSL372ELSrZBB_R7ogN6"
 COPY_MODEL = os.environ.get("COPY_MODEL") or "claude-sonnet-5"
+FORCE = (os.environ.get("FORCE_REBUILD") or "").strip().lower() == "true"
 
 STYLE = """你是 MTC「AI 自動回覆・幫你獲客」品牌的頂尖直效文案(Direct-Response)。
 受眾:台灣中小企業老闆——有自己的官方生意(官網/粉專/IG/LINE),但有一個共同痛點:
@@ -82,8 +83,11 @@ def write_copy(fname):
 
 
 def upload_video(account, path):
-    vid = account.create_ad_video(params={"source": path})
-    return vid["id"]
+    # 用 SDK 的分塊上傳(resumable),大檔才不會 413。
+    v = AdVideo(parent_id=C.ACT_ID)
+    v[AdVideo.Field.filepath] = path
+    v.remote_create()
+    return v[AdVideo.Field.id]
 
 
 def wait_ready(video_id, tries=90, gap=10):
@@ -141,8 +145,8 @@ def run(round_tag):
     svc = drive_service()
     vids = list_videos(svc)
     done = already_uploaded_ids(account)
-    new = [f for f in vids if f["id"] not in done]
-    print(f"[video] 資料夾共 {len(vids)} 支,已上 {len(vids)-len(new)},新影片 {len(new)} | DRY_RUN={C.DRY_RUN}")
+    new = vids if FORCE else [f for f in vids if f["id"] not in done]
+    print(f"[video] 資料夾共 {len(vids)} 支,已上 {len(vids)-len(new)},新影片 {len(new)} | FORCE={FORCE} DRY_RUN={C.DRY_RUN}")
     if not new:
         print("  沒有新影片,結束。")
         return
