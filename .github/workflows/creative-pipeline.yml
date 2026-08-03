@@ -35,6 +35,6 @@ jobs:
           LANDING_URL: ${{ secrets.LANDING_URL }}
           # 排程自動跑時要真的建；手動時看 live 輸入
           DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || (github.event.inputs.live == 'true' && 'false' || 'true') }}
-          # 手動重跑=強制重建全部圖(改文案/命名後重上)；排程日更=關掉,只加真正新圖
-          FORCE_REBUILD: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+          # 一律只加「真正的新圖」(用 [gd:] 去重)。用新的 round 標記建新容器,不動舊批次。
+          FORCE_REBUILD: "false"
         run: python creative_pipeline.py --round "${{ github.event.inputs.round || 'AUTO' }}"
