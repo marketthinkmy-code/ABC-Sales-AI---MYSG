@@ -26,5 +26,6 @@ jobs:
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
           DRY_RUN: "false"
-          FORCE_REBUILD: "true"
-        run: python video_pipeline.py --round VID1
+          # 只加「新影片」(用 [gd:] 去重),放進新批次,不動已上的 VID1
+          FORCE_REBUILD: "false"
+        run: python video_pipeline.py --round VID2
