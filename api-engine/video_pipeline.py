@@ -12,8 +12,11 @@ env: GOOGLE_SA_JSON, ANTHROPIC_API_KEY, META_ACCESS_TOKEN, PAGE_ID, LANDING_URL
 import os, re, json, time, argparse, tempfile
 import config as C
 import launch as L
+import kb as KB
+import naming as N
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.advideo import AdVideo
+from facebook_business.adobjects.adset import AdSet
 
 FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID") or "1mUL6VRHG33kcPSL372ELSrZBB_R7ogN6"
 COPY_MODEL = os.environ.get("COPY_MODEL") or "claude-sonnet-5"
@@ -181,14 +184,15 @@ def run(round_tag):
     account = AdAccount(C.ACT_ID)
     svc = drive_service()
     vids = list_videos(svc)
-    done = already_uploaded_ids(account)
+    kbo = KB.load()
+    done = KB.done_ids(kbo) | already_uploaded_ids(account)
     new = vids if FORCE else [f for f in vids if f["id"] not in done]
-    print(f"[video] 資料夾共 {len(vids)} 支,已上 {len(vids)-len(new)},新影片 {len(new)} | FORCE={FORCE} DRY_RUN={C.DRY_RUN}")
+    nums = KB.number_batch(new)          # V5→5 等檔名編號,沒有就自動 1..N
+    print(f"[video] 資料夾共 {len(vids)} 支,已上 {len(vids)-len(new)},新影片 {len(new)} | DRY_RUN={C.DRY_RUN}")
     if not new:
         print("  沒有新影片,結束。")
         return
 
-    base = f"{C.load_yaml('launch_template.yaml')['brand']['code']} | VID | {round_tag}"
     adset_id = None
     if not C.DRY_RUN:
         L.ensure_page_advertiser()
@@ -196,10 +200,11 @@ def run(round_tag):
         if not winners:
             raise SystemExit("找不到合規來源(贏家 ad set),無法建容器。")
         src = winners[0]["adset_id"]
-        L.delete_existing_campaigns(account, base)
-        camp = L.copy_source_campaign(account, base, src)
-        adset_id = L.clone_compliant_adset(account, camp, base, src)
-        print(f"  合規容器建好: campaign→ ad set {adset_id}")
+        camp = L.copy_source_campaign(account, N.campaign_name("Video"), src)
+        adset_id = L.clone_compliant_adset(account, camp, "tmp", src)
+        tgt = AdSet(adset_id).api_get(fields=["targeting"]).get("targeting") or {}
+        AdSet(adset_id).api_update(params={"name": N.adset_name(tgt)})
+        print(f"  合規容器建好: {N.campaign_name('Video')} → ad set {adset_id}")
 
     n = 0
     for f in new:
@@ -222,13 +227,15 @@ def run(round_tag):
                     print("     ⚠️ 影片處理逾時,先跳過(稍後可重跑)")
                     continue
                 theme = re.sub(r"\s+", "", hl)[:24] or fname[:16]
-                name = f"AI獲客 | VID | {theme} [gd:{fid}]"
+                name = N.ad_name("VID", nums[fid], theme)
                 ad_id = create_video_ad(account, adset_id, vid, thumbnail(vid), pt, hl, name)
+                KB.record(kbo, fid, "VID", nums[fid], ad_id, name, fname)
                 n += 1
                 print(f"     ✓ 建好影片廣告 ad={ad_id}")
             except Exception as e:
                 print(f"     ⚠️ 建影片廣告失敗,跳過: {e}")
     if not C.DRY_RUN:
+        KB.save(kbo)
         print(f"→ 已上 {n} 支新影片為 PAUSED 影片廣告。檢查無誤後開 ACTIVE。")
 
 

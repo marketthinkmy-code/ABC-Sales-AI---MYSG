@@ -13,7 +13,10 @@
 import os, re, json, base64, argparse, tempfile, io
 import config as C
 import launch as L
+import kb as KB
+import naming as N
 from facebook_business.adobjects.adaccount import AdAccount
+from facebook_business.adobjects.adset import AdSet
 
 FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID") or "1mUL6VRHG33kcPSL372ELSrZBB_R7ogN6"
 COPY_MODEL = os.environ.get("COPY_MODEL") or "claude-sonnet-5"
@@ -159,17 +162,12 @@ def run(round_tag):
     account = AdAccount(C.ACT_ID)
     svc = drive_service()
     imgs = list_images(svc)
-    base = f"{C.load_yaml('launch_template.yaml')['brand']['code']} | IMG | {round_tag}"
-    # live 重跑:先刪掉本輪同名舊容器(連同裡面的舊廣告),
-    # 這樣同一批圖的 [gd:] 標記會一起消失,才能用新文案/新命名重建(否則會判定「已上過」而跳過)。
-    if not C.DRY_RUN:
-        L.delete_existing_campaigns(account, base)
-    if FORCE:
-        new = imgs                      # 強制重建:資料夾全部圖都當新圖
-    else:
-        done = already_uploaded_ids(account)
-        new = [f for f in imgs if f["id"] not in done]
-    print(f"[creative] 資料夾共 {len(imgs)} 張，已上 {len(imgs)-len(new)}，新圖 {len(new)} | FORCE={FORCE} DRY_RUN={C.DRY_RUN}")
+    kbo = KB.load()
+    # 去重:優先看 KB(乾淨名),再相容舊的 [gd:] 標記
+    done = KB.done_ids(kbo) | already_uploaded_ids(account)
+    new = imgs if FORCE else [f for f in imgs if f["id"] not in done]
+    nums = KB.number_batch(new)          # 依檔名編號,沒有就自動 1..N
+    print(f"[creative] 資料夾共 {len(imgs)} 張，已上 {len(imgs)-len(new)}，新圖 {len(new)} | DRY_RUN={C.DRY_RUN}")
     if not new:
         print("  沒有新圖，結束。")
         return
@@ -181,9 +179,11 @@ def run(round_tag):
         if not winners:
             raise SystemExit("找不到合規來源(贏家 ad set),無法建容器。")
         src = winners[0]["adset_id"]
-        camp = L.copy_source_campaign(account, base, src)
-        adset_id = L.clone_compliant_adset(account, camp, base, src)
-        print(f"  合規容器建好: campaign→ ad set {adset_id}")
+        camp = L.copy_source_campaign(account, N.campaign_name("Image"), src)
+        adset_id = L.clone_compliant_adset(account, camp, "tmp", src)
+        tgt = AdSet(adset_id).api_get(fields=["targeting"]).get("targeting") or {}
+        AdSet(adset_id).api_update(params={"name": N.adset_name(tgt)})
+        print(f"  合規容器建好: {N.campaign_name('Image')} → ad set {adset_id}")
 
     n = 0
     for f in new:
@@ -201,16 +201,18 @@ def run(round_tag):
                 print(f"\n===== {fname} =====\n[標題] {hl}\n[文案] ({len(pt)} 字 / {len(pt.splitlines())} 行)\n{pt}\n")
                 continue
             print(f"  ── {fname}\n     標題: {hl}\n     文案: {pt[:60]}...")
-            # 依「痛點」命名:用 AI 產出的 headline 當廣告名主體,[gd:] 標記留著去重
+            # 乾淨命名:AI獲客 | IMG | #編號 | 痛點標題(去重改記在 KB,不放廣告名)
             theme = re.sub(r"\s+", "", hl)[:24] or fname[:16]
-            name = f"AI獲客 | IMG | {theme} [gd:{fid}]"
+            name = N.ad_name("IMG", nums[fid], theme)
             try:
                 ad_id = create_image_ad(account, adset_id, upload_image(account, p), pt, hl, name)
+                KB.record(kbo, fid, "IMG", nums[fid], ad_id, name, fname)
                 n += 1
                 print(f"     ✓ 建好圖片廣告 ad={ad_id}")
             except Exception as e:
                 print(f"     ⚠️ 建廣告失敗,跳過: {e}")
     if not C.DRY_RUN:
+        KB.save(kbo)
         print(f"→ 已上 {n} 張新圖為 PAUSED 圖片廣告。檢查無誤後開 ACTIVE。")
 
 

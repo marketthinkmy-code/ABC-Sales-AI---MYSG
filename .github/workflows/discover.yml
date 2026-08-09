@@ -4,6 +4,9 @@ name: Discover IDs (Page / Pixel / Video)
 on:
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   discover:
     runs-on: ubuntu-latest
@@ -26,6 +29,14 @@ jobs:
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
           DRY_RUN: "false"
-          # 重做:資料夾現在是 8 支修訂版影片,用新長文案全部重建到 VID1
-          FORCE_REBUILD: "true"
+          # 只加「新影片」(用 KB 去重),不動已上的
+          FORCE_REBUILD: "false"
         run: python video_pipeline.py --round VID1
+      - name: Commit KB
+        run: |
+          git config user.name "claude-bot"
+          git config user.email "noreply@anthropic.com"
+          git add reports/creatives_kb.json || true
+          git commit -m "creatives KB (video) $(date -u +%F)" || echo "no changes"
+          git pull --rebase origin "${{ github.ref_name }}" || true
+          git push || true
