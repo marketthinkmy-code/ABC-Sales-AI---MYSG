@@ -57,6 +57,16 @@ creatives:
   - creative_id: "1917449309649937"     # Video 4: 博士员工
     note: "最佳單次 CPL 53.10;聚合 209 報名"
 
+# --- 🇸🇬 新加坡法規(2025-05-27 起強制,缺了 ad set 建不起來) ----
+# 已實測驗證(2026-08-09):ad set 需帶以下兩個頂層欄位。
+# MCP 的 ads_create_ad_set 不支援這兩個欄位 → 要用 ads_create_ad 的
+# adset_spec 內聯建 ad set(ad_set_id 傳 0),第一支 ad 連著 ad set 一起生。
+singapore_regulation:
+  regional_regulated_categories: ["SINGAPORE_UNIVERSAL"]
+  regional_regulation_identities:
+    singapore_universal_beneficiary: 1038935314643355   # MTC 4.0(已驗證 business)
+    singapore_universal_payer: 1038935314643355
+
 # --- 上架安全設定 ------------------------------------------
 launch:
   initial_status: "PAUSED"
