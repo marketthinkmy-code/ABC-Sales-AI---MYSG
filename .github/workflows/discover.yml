@@ -26,6 +26,6 @@ jobs:
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
           DRY_RUN: "false"
-          # 只加「新影片」(用 [gd:] 去重),放進新批次,不動已上的 VID1
-          FORCE_REBUILD: "false"
-        run: python video_pipeline.py --round VID2
+          # 重做:資料夾現在是 8 支修訂版影片,用新長文案全部重建到 VID1
+          FORCE_REBUILD: "true"
+        run: python video_pipeline.py --round VID1
