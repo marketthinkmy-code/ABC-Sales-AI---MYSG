@@ -17,19 +17,17 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Build CPA dashboard
+      - name: Organize names (rename campaign/adset/ads)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
-          BUYER_SHEET_ID: ${{ secrets.BUYER_SHEET_ID }}
-          PRICE_PER_SALE: ${{ secrets.PRICE_PER_SALE }}
-        run: python weekly_cpa.py
-      - name: Commit report
+        run: python organize_names.py --media Image --match "IMG | IMG3"
+      - name: Commit KB
         run: |
           git config user.name "claude-bot"
           git config user.email "noreply@anthropic.com"
           git add reports/
-          git commit -m "CPA dashboard $(date -u +%F)" || echo "no changes"
+          git commit -m "organize names + KB $(date -u +%F)" || echo "no changes"
+          git pull --rebase origin "${{ github.ref_name }}" || true
           git push
