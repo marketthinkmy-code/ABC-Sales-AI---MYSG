@@ -31,7 +31,8 @@ jobs:
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
           GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          # 這批新圖在新資料夾(IMAGES / 1AUOQes4…)
+          DRIVE_FOLDER_ID: "1AUOQes4dAqM-AXupG4kX_xbIBoMbbwow"
           LANDING_URL: ${{ secrets.LANDING_URL }}
           # 排程自動跑時要真的建；手動時看 live 輸入
           DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || (github.event.inputs.live == 'true' && 'false' || 'true') }}
