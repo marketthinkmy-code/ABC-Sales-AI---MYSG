@@ -58,5 +58,11 @@ Campaign `120250092432250103`「AI員工SG-自動 | 新素材圖片 | R2」,CBO 
 Drive 公开直链 → Higgsfield `media_import_url` → CloudFront URL → `ads_create_creative` image_url。
 Meta 拒抓 drive.google.com(robots.txt),必须经 CDN 中转。
 
-**13 支视频待团队手动上传素材库**(CN1-CN14),上传后用 `ads_get_ad_videos` 捞 video_id,
-按 4 支一组开 AS4/AS5/AS6+,文案沿用对应 hook。
+**13 支视频已上架**(团队手动传进素材库后,用 `ads_get_ad_videos` 捞 video_id 建 creative,
+缩图直接用视频的 `picture` 字段 URL):
+- **AS4 视频A** `120250092842800103`:CN1 抢着回 / CN2 不下班 / CN3 30天挑战 / CN4 WhatsApp全自动
+- **AS5 视频B** `120250092844390103`:CN5 还在手动 / CN6 慢回10分钟 / CN7 半夜好老板 / CN9 47未读
+- **AS6 视频C CN10家族** `120250092846540103`:CN10 原版 / hook1 / hook2(同文案,纯 hook A/B)
+- **AS7 视频D** `120250092849240103`:CN11 接追约报 / CN14 用法2023
+
+R2 全貌:**7 个 ad set、23 支广告**(10 图 + 13 视频),CBO RM100/日,全 PAUSED 待开。
