@@ -39,3 +39,24 @@
 2. **M7SI1「3步拥有AI员工」在 SG 是效率第一,在 MY 只是中游**(45.5)—— 兩市場的胃口不同,別假設 winner 可以直接互搬。
 3. **SG 帳號目前幾乎全停**(200 支裡只有個位數 ACTIVE),重啟時建議從上表 🥇🥈 開始,不要從零測。
 4. Freestyle「飞机vs自己造飞机」CTR 全場最高(3.3-5.05%)但 CPL 平庸 —— 再次驗證 CTR 不是判準。
+
+---
+
+## R2 上架记录(2026-08-09,新素材圖片,SG)
+
+Campaign `120250092432250103`「AI員工SG-自動 | 新素材圖片 | R2」,CBO RM100/日,全 PAUSED 待验收。
+素材来源 Drive 资料夹 `1isGIkJDjRptoFGTmb8_ZTGSOhnbja7H9`(15 图 13 视频)。
+
+- **AS1 漏单恐惧** `120250092470870103`:每月烧5k / 47未读手机版 / 47未读睡觉版 / 半夜12点好老板
+- **AS2 老板痛点** `120250092478510103`:隔壁店隐形员工 / 店中了几个 / 真人SALES+AI
+- **AS3 认知升级** `120250092482710103`:最会赚钱的部门 / AI用法2023 / 接追约报系统
+
+**5 张 MY 版已 skip**(RM/EPF/SOCSO 元素,SG 会穿帮):请一个员工RM3-5k、慢回10分钟RM3k、
+3个人的工AI搞定 ×2、竞争对手也刷到了(RM299)。→ 待设计出 SGD/CPF 版再补。
+
+**图片上传管道**(SG 帐户 Meta 上传 API 未放行时的解法):
+Drive 公开直链 → Higgsfield `media_import_url` → CloudFront URL → `ads_create_creative` image_url。
+Meta 拒抓 drive.google.com(robots.txt),必须经 CDN 中转。
+
+**13 支视频待团队手动上传素材库**(CN1-CN14),上传后用 `ads_get_ad_videos` 捞 video_id,
+按 4 支一组开 AS4/AS5/AS6+,文案沿用对应 hook。
