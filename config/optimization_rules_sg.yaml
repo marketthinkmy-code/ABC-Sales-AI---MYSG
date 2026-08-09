@@ -1,0 +1,49 @@
+# =============================================================
+# 優化規則 —【新加坡】AI 员工 帮你做工 (689850610799710) 專用
+# 門檻直接從本帳號歷史數據反推(2026-08-09,date_preset=maximum,
+# 總花費 RM144k / 2,089 報名 / blended CPL ~65):
+#   歷史最好的一批:49.5 / 51.7 / 52.3 / 53.1(該留、該加碼)
+#   被關掉的一批:78 / 87 / 91 / 116(該死)
+# → winner 線 55、kill 線 85,卡在本帳號真實分界。
+# ⚠️ 不要拿 MY 的門檻(35/60)跑 SG —— 會把 SG 全部 winner 殺光。
+# MY 帳號 (1578372656904971) 用預設 config/optimization_rules.yaml 即可
+# (其 35/60 門檻與 MY 歷史數據吻合:winner 27-35、loser 45+)。
+# =============================================================
+
+target:
+  cpl_target_myr: 55            # SG 目標每次報名成本
+  currency: "MYR"
+
+learning:
+  min_spend_before_action_myr: 60   # 約 1 個 SG CPL 的量
+  min_days: 1
+
+kill:
+  - name: "花錢零轉換"
+    when: "spend >= 2 * cpl_target_myr AND results == 0"   # 花 110 還 0 報名
+    action: "PAUSE"
+  - name: "CPL 過高"
+    when: "spend >= min_spend_before_action AND cost_per_result > 85"
+    action: "PAUSE"
+
+scale:
+  - name: "穩定低 CPL 加預算"
+    when: "cost_per_result < 55 AND spend >= 150"
+    action: "INCREASE_BUDGET"
+    budget_step_pct: 20
+    max_daily_budget_myr: 320
+  - name: "極佳 CPL 複製放大"
+    when: "cost_per_result < 45 AND results >= 5"
+    action: "DUPLICATE"
+    duplicate_budget_myr: 100
+
+creative_feedback:
+  - name: "連贏 3 天的素材"
+    when: "ad.cost_per_result < 50 for 3 consecutive days"
+    action: "FLAG_FOR_VARIATION"
+
+guardrails:
+  max_pauses_per_run: 10
+  max_budget_increase_per_run_pct: 20
+  never_touch_status: ["ARCHIVED", "DELETED"]
+  dry_run: true                   # 首週 true 只出建議;核對 3-5 天無誤才改 false

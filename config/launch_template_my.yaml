@@ -1,0 +1,65 @@
+# =============================================================
+# 冠軍模板 (Launch Template) — AI 員工 幫你做工【馬來西亞】
+# 結構照抄 Soo Cheng 已驗證模板;參數為本帳號真實 ID(2026-08-09 用 Meta MCP 撈出)。
+# 每次上新素材只需改 `creatives:` 區塊。
+# =============================================================
+
+brand:
+  code: "AI員工MY-自動"            # 命名前綴,後台認出這是自動化開的
+  display_name: "AI 員工 幫你做工 (MY)"
+
+# --- 帳號與資產(已填好,MCP 已啟用,可直接跑) ---------------
+account:
+  ad_account_id: "1578372656904971"   # AI 員工 幫你做工 ✅ ACTIVE + MCP enabled
+  page_id: "515998081597586"          # FB 粉專「AI 員工 幫你做工」
+  instagram_id: ""                    # 選填
+  pixel_id: "1118470166628952"        # 馬來西亞華語 AI 員工 pixel
+  currency: "MYR"
+
+# --- Campaign 層 (照抄 Soo Cheng) ---------------------------
+campaign:
+  objective: "OUTCOME_SALES"
+  buying_type: "AUCTION"
+  bid_strategy: "LOWEST_COST_WITHOUT_CAP"   # = "Highest volume"
+  budget_level: "campaign"                  # CBO
+  special_ad_categories: []
+
+# --- Ad Set 層 --------------------------------------------
+ad_set:
+  optimization_goal: "OFFSITE_CONVERSIONS"
+  conversion_event: "CompleteRegistration"
+  attribution_spec: "7d_click_1d_view"
+  daily_budget_myr: 100                # Soo Cheng 起跑線;winner 才往上加(見 rules)
+  geo:
+    countries: ["MY"]
+  age_min: 25
+  age_max: 55
+  genders: "all"
+  placements: "advantage_plus"
+  # detailed_targeting 由 angles.yaml 逐角度帶入
+
+# --- Ad / Creative 層 --------------------------------------
+creative_defaults:
+  call_to_action: "SIGN_UP"
+  landing_url: "https://futureaiemployee.com/register-chi"
+  display_url: ""
+
+# 歷史 winner(依「總報名 ÷ 總花費」聚合排序,date_preset=maximum,2026-08-09 撈)。
+# 這批是帳號裡已存在的 creative,可直接用 creative_id 重上;
+# 新素材則上傳拿 video_id 後照 docs/NAMING.md 命名新增。
+creatives:
+  - creative_id: "813217501472548"      # 🥇 Video 1: Crush 2025 with AI
+    note: "單支 RM38,510 / 1,183 報名 / CPL 32.55,現役最大 winner,仍 ACTIVE"
+  - creative_id: "1468339517596393"     # Video 1 變體,全帳號最佳單次 CPL 27.46(306 報名)
+    note: "同 Video 1,歷史 CPL 最低的一次投放"
+  - creative_id: "1543018466730265"     # 🥈 Video 3: Street Interview
+    note: "聚合 RM27k / 781 報名 / CPL ~35"
+  - creative_id: "1465977095323905"     # 🥉 M2Video 3:很厉害额这个AI
+    note: "最佳單次 CPL 27.81;聚合 RM21.6k / 541 報名"
+  - creative_id: "837891945897065"      # Video 4: 博士员工
+    note: "最佳單次 CPL 28.84;聚合量大(1,145 報名)但均值 ~42,當側翼"
+
+# --- 上架安全設定 ------------------------------------------
+launch:
+  initial_status: "PAUSED"    # 一律先 PAUSED,檢查後才統一開
+  ads_per_adset: 3

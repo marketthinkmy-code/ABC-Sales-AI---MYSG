@@ -35,6 +35,19 @@
 3. 用 `playbooks/launch.md` 上第一批廣告(先 PAUSED 檢查再開)。
 4. 用 `routines/daily-optimize.md` 掛每日排程,系統開始自動跑。
 
+## 🆕 AI 員工 幫你做工(MY + SG)—— 已落地的第二條產線
+
+同一套系統,掛到「AI Employee」漏斗的兩個帳戶(都已 MCP 啟用,走最省事的 MCP 引擎):
+
+| 市場 | 帳戶 | Launch config | 優化門檻 | Landing |
+|---|---|---|---|---|
+| 馬來西亞 | `1578372656904971` | `config/launch_template_my.yaml` | 預設 `optimization_rules.yaml`(35/60) | /register-chi |
+| 新加坡 | `689850610799710` | `config/launch_template_sg.yaml` | `optimization_rules_sg.yaml`(55/85) | /register-chi-sg |
+
+- 歷史 winner 圖譜(誰該抄、誰該砍):`docs/WINNERS-AI-EMPLOYEE.md`
+- 每日優化 Routine(一個排程管兩帳戶):`routines/daily-optimize-mysg.md`
+- ⚠️ SG 的 CPL 天生比 MY 貴 ~1.7 倍,**兩市場門檻不可混用**。
+
 ## 兩種引擎(依帳號 MCP 狀態選)
 
 | 帳號 MCP | 引擎 | 位置 |

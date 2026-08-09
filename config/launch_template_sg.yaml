@@ -1,0 +1,63 @@
+# =============================================================
+# 冠軍模板 (Launch Template) — AI 员工 帮你做工【新加坡】
+# 結構照抄 Soo Cheng 已驗證模板;參數為本帳號真實 ID(2026-08-09 用 Meta MCP 撈出)。
+# ⚠️ SG 的 CPL 天生比 MY 貴 ~1.7 倍(歷史 blended:SG ~65 vs MY ~36),
+#    優化門檻用 config/optimization_rules_sg.yaml,不要拿 MY 的門檻殺 SG 的廣告。
+# =============================================================
+
+brand:
+  code: "AI員工SG-自動"
+  display_name: "AI 员工 帮你做工 (SG)"
+
+# --- 帳號與資產(已填好,MCP 已啟用,可直接跑) ---------------
+account:
+  ad_account_id: "689850610799710"    # (SG) AI 员工 帮你做工 ✅ ACTIVE + MCP enabled
+  page_id: "515998081597586"          # FB 粉專「AI 員工 幫你做工」(與 MY 共用)
+  instagram_id: ""
+  pixel_id: "1115593594095113"        # 新加坡 AI 员工 pixel
+  currency: "MYR"                     # 帳號計價幣別是 MYR(投放地區 SG)
+
+# --- Campaign 層 (照抄 Soo Cheng) ---------------------------
+campaign:
+  objective: "OUTCOME_SALES"
+  buying_type: "AUCTION"
+  bid_strategy: "LOWEST_COST_WITHOUT_CAP"
+  budget_level: "campaign"
+  special_ad_categories: []
+
+# --- Ad Set 層 --------------------------------------------
+ad_set:
+  optimization_goal: "OFFSITE_CONVERSIONS"
+  conversion_event: "CompleteRegistration"
+  attribution_spec: "7d_click_1d_view"
+  daily_budget_myr: 100
+  geo:
+    countries: ["SG"]
+  age_min: 25
+  age_max: 55
+  genders: "all"
+  placements: "advantage_plus"
+
+# --- Ad / Creative 層 --------------------------------------
+creative_defaults:
+  call_to_action: "SIGN_UP"
+  landing_url: "https://futureaiemployee.com/register-chi-sg"
+  display_url: ""
+
+# 歷史 winner(依「總報名 ÷ 總花費」聚合排序,date_preset=maximum,2026-08-09 撈)。
+creatives:
+  - creative_id: "958729673217985"      # 🥇 M7SI1: 3步拥有AI员工
+    note: "SG 現役唯一 ACTIVE winner,CPL 51.73 / 88 報名 —— SG 效率第一"
+  - creative_id: "1911658582892544"     # 🥈 Video 1: Crush 2025 with AI
+    note: "最佳單次 CPL 49.52(111 報名);聚合 RM42k / 676 報名是量最大主力"
+  - creative_id: "1547308666301926"     # Video 1 變體
+    note: "CPL 52.32 / 189 報名,單支報名數 SG 最高"
+  - creative_id: "829907486628243"      # Video 3: Street Interview
+    note: "最佳單次 CPL 57.71;聚合 RM21k / 338 報名"
+  - creative_id: "1917449309649937"     # Video 4: 博士员工
+    note: "最佳單次 CPL 53.10;聚合 209 報名"
+
+# --- 上架安全設定 ------------------------------------------
+launch:
+  initial_status: "PAUSED"
+  ads_per_adset: 3
