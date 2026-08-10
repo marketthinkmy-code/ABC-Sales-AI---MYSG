@@ -84,3 +84,20 @@ R2 全貌:**7 个 ad set、23 支广告**(10 图 + 13 视频),CBO RM100/日。20
   成交进度WhatsApp `120253907271220271` / 你已经在用AI写文案 `120253907286090271`
 
 注:MY 帐户无新加坡法规字段需求,ads_create_ad_set 直接可用。
+
+---
+
+## 2026-08-10 SP1 专属 campaign(「AI写文案・真人版」,MY + SG,已 ACTIVE)
+
+单图专属 campaign,WK 指定规则:**华人受众 + 30-60 岁 + UTM 模板**。
+
+- 华人定向用**中文语言 locales [20,21,22]**(照抄帐户内现役手动 ad set「*|30 - 60|SG|Manual placement」的已验证配置),Advantage+ audience 关闭(advantage_audience:0)= 年龄 30-60 硬上限。
+- UTM 直接拼在 landing URL(Meta 动态宏投放时自动展开):
+  `?utm_source={{site_source_name}}&utm_medium={{adset.name}}&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{placement}}`
+
+| 市场 | Campaign | Ad set | Ad |
+|---|---|---|---|
+| SG | `120250105774370103`「AI員工SG-自動 \| 華人30-60 \| SP1」 | `120250105791850103` | `120250105791730103` |
+| MY | `120253916794760271`「AI員工MY-自動 \| 華人30-60 \| SP1」 | `120253916807790271` | `120253916812010271` |
+
+各 CBO RM100/日。**今后所有新 campaign 的 landing URL 都应带这套 UTM 模板。**
