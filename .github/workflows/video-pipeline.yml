@@ -1,0 +1,58 @@
+name: Video Pipeline (Drive video -> ad)
+
+# 掃 Drive「待上架」資料夾的新影片 → AI 依檔名鉤子寫英文長文案 → 上傳 Meta → 建影片廣告(PAUSED)。
+# 這條解決手動上傳的痛:Google 服務帳號直接下載影片字節、resumable 上傳,不受「公開直鏈」限制。
+# MY + SG matrix。用 [gd:<fileId>] 去重,不會重覆上傳。
+on:
+  workflow_dispatch:
+    inputs:
+      round:
+        description: "本輪標記 (如 VID1)"
+        required: true
+        default: "VID1"
+      live:
+        description: "true=真的上傳+建廣告(PAUSED) / false=只列新影片+試寫文案"
+        required: true
+        default: "false"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: video-pipeline-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        market: [MY, SG]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run video pipeline (${{ matrix.market }})
+        working-directory: api-engine
+        env:
+          MARKET: ${{ matrix.market }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_VIDEO_FOLDER_ID }}
+          # 手動 live 控制;沒設就 true(只試跑不動)。
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+          FORCE_REBUILD: "false"
+        run: python video_pipeline.py --round "${{ github.event.inputs.round || 'VID1' }}"
+      - name: Commit KB
+        run: |
+          git config user.name "claude-bot"
+          git config user.email "noreply@anthropic.com"
+          git add reports/ || true
+          git commit -m "creatives KB (video ${{ matrix.market }}) $(date -u +%F)" || echo "no changes"
+          git pull --rebase origin "${{ github.ref_name }}" || true
+          git push || true

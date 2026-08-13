@@ -1,0 +1,59 @@
+name: Creative Pipeline (Drive image -> ad)
+
+# 掃 Drive 資料夾的新圖 → AI 寫文案 → 建圖片廣告(PAUSED)。MY + SG matrix。
+# ⚠️ 圖片文案 prompt 仍在 creative_pipeline.py 內(繁中舊版),要用圖片前需比照 video 換成英文。
+on:
+  workflow_dispatch:
+    inputs:
+      round:
+        description: "本輪標記 (如 IMG1)"
+        required: true
+        default: "IMG1"
+      live:
+        description: "true=真的建廣告(PAUSED) / false=只試跑列新圖+文案"
+        required: true
+        default: "false"
+  schedule:
+    - cron: "0 2 * * *"   # 每天 UTC 02:00 = 馬來/新加坡 10:00
+
+permissions:
+  contents: write
+
+concurrency:
+  group: creative-pipeline-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  creative:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        market: [MY, SG]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run creative pipeline (${{ matrix.market }})
+        working-directory: api-engine
+        env:
+          MARKET: ${{ matrix.market }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_IMAGE_FOLDER_ID }}
+          # 排程 → 受 DRY_RUN Secret 保護(空/未設 = true 安全);手動 → 看 live 輸入。
+          DRY_RUN: ${{ github.event_name == 'schedule' && secrets.DRY_RUN || (github.event.inputs.live == 'true' && 'false' || 'true') }}
+          FORCE_REBUILD: "false"
+        run: python creative_pipeline.py --round "${{ github.event.inputs.round || 'AUTO' }}"
+      - name: Commit KB
+        run: |
+          git config user.name "claude-bot"
+          git config user.email "noreply@anthropic.com"
+          git add reports/ || true
+          git commit -m "creatives KB (image ${{ matrix.market }}) $(date -u +%F)" || echo "no changes"
+          git pull --rebase origin "${{ github.ref_name }}" || true
+          git push || true

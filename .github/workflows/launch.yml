@@ -1,0 +1,39 @@
+name: Launch Ads (自动上广告)
+
+# 手動執行。照冠軍結構建 campaign/adset/creative/ad(全 PAUSED)。
+# 主力素材產線是 video-pipeline / creative-pipeline;這條用於 launch_winners(複製贏家)。
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "市場 MY 或 SG"
+        required: true
+        default: "MY"
+      round:
+        description: "本轮标记 (如 R1)"
+        required: true
+        default: "R1"
+      live:
+        description: "true=真的建广告(PAUSED) / false=只试跑"
+        required: true
+        default: "false"
+
+jobs:
+  launch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Launch (${{ github.event.inputs.market }})
+        working-directory: api-engine
+        env:
+          MARKET: ${{ github.event.inputs.market }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+          WINNER_BUDGET: "2000"
+        run: python launch_winners.py

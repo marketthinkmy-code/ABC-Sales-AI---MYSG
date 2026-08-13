@@ -1,0 +1,60 @@
+# =============================================================
+# 市場設定 (Markets) — AI Employee Blueprint Masterclass · MY + SG
+# 一套代碼、兩個市場。引擎讀環境變數 MARKET (MY/SG) 選這裡對應的區塊。
+#
+# 這裡放「非機密」值(帳號/pixel/落地頁/門檻)——可以進 git。
+# 真正的機密(META_ACCESS_TOKEN / GOOGLE_SA_JSON / ANTHROPIC_API_KEY)只放 GitHub Secrets。
+# Secret 若有同名 env(如 AD_ACCOUNT_ID)會「覆蓋」這裡的值。
+# 幣別:MY、SG 兩個帳號都是 MYR。
+# =============================================================
+
+# ---- 兩市場共用 ----
+shared:
+  page_id: "460789450460649"          # FB 粉專(MY/SG 共用)
+  business_id: "1038935314643355"     # MTC 4.0(授 Page 權限 / SG 合規實體)
+  instagram_id: ""
+  currency: "MYR"
+  objective: "OUTCOME_SALES"          # 報名 masterclass = 網站轉換
+  conversion_event: "CompleteRegistration"
+  age_min: 30
+  age_max: 55
+  genders: "all"
+  placements: "advantage_plus"
+  ads_per_adset: 3
+  initial_status: "PAUSED"            # 一律先 PAUSED
+  # 合規:全新英文帳號沒有現成「贏家」可複製 → 從零建 ad set。
+  clone_source_adset: ""              # 空 = 走 create_ad_set 從零建
+  # 優化門檻(MYR,MY/SG 同一套;要分開就在各市場 thresholds 覆蓋)
+  thresholds:
+    target_cpl: 30            # 目標每次報名成本 (cost per registration)
+    scale_cpl: 30            # CPL < 30 → 加預算 +20%
+    budget_step_pct: 20
+    mid_scale_max: 40        # 30 <= CPL < 40 → 加預算 +10%
+    mid_step_pct: 10
+    # 40 <= CPL <= 60 → 監控 (不動作)
+    kill_cpl: 60             # CPL > 60 → 關掉
+    cpa_kill: 2000           # CPA(每個付費客戶成本)> 2000 → 關掉(每週 CPA 引擎判)
+    min_spend_before_action: 40   # 花不到此不判死(約 1×CPL,避免誤殺學習期)
+    # ⚠️ 待你確認:起跑日預算 / 單組上限。你給的是「整輪 RM20k,MY:SG=7:3」——
+    # 這是組合層預算,不是單 campaign 日預算。下面是安全起跑值,上線前請跟我確認。
+    start_daily_budget: 100  # 每個 angle-campaign 起跑日預算
+    max_daily_budget: 500    # 單組每日預算加碼上限
+
+# ---- 各市場專屬 ----
+markets:
+  MY:
+    ad_account_id: "384734236863395"    # MY 廣告帳號 ✅ MCP+API 已啟用 · MYR · MTC 4.0
+    pixel_id: "605508081849922"         # MY: AI employee Blueprint Masterclass pixel
+    landing_url: "https://futureaiemployee.com/register-page"
+    geo: ["MY"]
+    # MY 目前不需要 regional regulated category
+
+  SG:
+    ad_account_id: "536941169394673"    # SG 廣告帳號 (MTC - Mengteck AI 员工) ✅ · MYR · MTC 4.0
+    pixel_id: "952343113426537"         # SG: (SG) AI employee blueprint Masterclass pixel
+    landing_url: "https://futureaiemployee.com/register-sg"
+    geo: ["SG"]
+    # 🇸🇬 SG 強制法規(2025-05-27 起,缺了 ad set 建不起來):
+    regional_regulated_categories: ["SINGAPORE_UNIVERSAL"]
+    dsa_beneficiary_id: "1038935314643355"   # MTC 4.0(已驗證 business)
+    dsa_payer_id: "1038935314643355"

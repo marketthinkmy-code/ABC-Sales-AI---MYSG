@@ -1,0 +1,33 @@
+name: Daily Ads Optimize
+
+# 每日自動優化(自動跑)。免伺服器,GitHub 幫你跑。MY + SG 各跑一次(matrix)。
+on:
+  schedule:
+    - cron: "0 1 * * *"   # UTC 01:00 = 馬來/新加坡 09:00
+  workflow_dispatch: {}    # 也可在 Actions 頁面手動按一下試跑
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [MY, SG]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -r api-engine/requirements.txt
+      - name: Run optimize (${{ matrix.market }})
+        working-directory: api-engine
+        env:
+          MARKET: ${{ matrix.market }}
+          # 帳號/pixel/落地頁/門檻都在 config/markets.yaml,不必再設 Secret。
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          # 首次先讓 Secret DRY_RUN=true 空跑;核對 3-5 天無誤後改成 false。
+          DRY_RUN: ${{ secrets.DRY_RUN }}
+        run: python optimize.py

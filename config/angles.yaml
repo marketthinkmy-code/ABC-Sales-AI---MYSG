@@ -1,0 +1,41 @@
+# =============================================================
+# 興趣角度 (Angles) — 每個角度 = 一個獨立 campaign
+# 直接對應 Soo Cheng 的做法:一個興趣受眾一支 campaign，
+# 命名 BRAND | ANGLE | 版本，靠 CPL 賽馬決定誰活誰死。
+#
+# Soo Cheng 實跑角度(供參考):
+#   LUXURY GOODS / TRAVEL / BROAD / INVESTMENT /
+#   BUSINESS OWNER / GOLF PICKLEBALL / RUNNING / NEWS
+#
+# ABC Sales AI 的角度應對應「想學 AI 銷售/自動獲客」的人群。
+# detailed_targeting 填 Meta 興趣關鍵字或留空 (BROAD 交給演算法)。
+# =============================================================
+
+angles:
+  - key: "BROAD"
+    label: "廣泛受眾 (演算法自己找)"
+    detailed_targeting: []          # 空 = 交給 Advantage+
+    priority: 1                     # 通常 BROAD CPL 最低，優先加碼
+
+  - key: "BUSINESS OWNER"
+    label: "中小企業主 / 老闆"
+    detailed_targeting: ["Small business owners", "Entrepreneurship"]
+    priority: 1
+
+  - key: "SALES TEAM"
+    label: "銷售/業務團隊"
+    detailed_targeting: ["Sales", "Marketing"]
+    priority: 2
+
+  - key: "COACH"
+    label: "課程導師 / Coach"
+    detailed_targeting: ["Online coaching", "Personal development"]
+    priority: 2
+
+  - key: "AI TOOLS"
+    label: "對 AI 工具有興趣者"
+    detailed_targeting: ["Artificial intelligence", "ChatGPT", "Automation"]
+    priority: 1
+
+# 每輪 (round) 上架時，系統對每個 angle 用同一批素材各建一支 campaign。
+# 第一輪建議只跑 priority=1 的角度，控制預算，跑穩再展開 priority=2。

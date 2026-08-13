@@ -1,0 +1,33 @@
+name: Report CPA (campaign lifetime spend)
+
+# 分支上暫時借用這個(已註冊在 main 的)workflow 來按需跑 weekly_cpa,
+# 正式排程走 weekly-cpa.yml(合併到 main 後每週三自動跑)。
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Organize names (rename campaign/adset/ads)
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+        run: python organize_names.py --media Image --match "IMG | IMG3"
+      - name: Commit KB
+        run: |
+          git config user.name "claude-bot"
+          git config user.email "noreply@anthropic.com"
+          git add reports/
+          git commit -m "organize names + KB $(date -u +%F)" || echo "no changes"
+          git pull --rebase origin "${{ github.ref_name }}" || true
+          git push

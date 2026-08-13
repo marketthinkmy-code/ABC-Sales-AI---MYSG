@@ -1,0 +1,30 @@
+# =============================================================
+# 冠軍模板 (Launch Template) — AI Employee Blueprint Masterclass
+# 帳號/pixel/落地頁/受眾/門檻現在都由 config/markets.yaml + config.py 依 MARKET 帶入。
+# 這裡只留:命名前綴、CTA、以及(選用的)手動素材清單。
+# 主力素材產線 = video-pipeline / creative-pipeline(自動從 Drive 抓、AI 寫文案)。
+# =============================================================
+
+brand:
+  code: "AI EMPLOYEE BLUEPRINT"        # 命名前綴(naming.py 會再冠上市場,如 (MY) …)
+  display_name: "AI Employee Blueprint Masterclass"
+
+# Campaign 結構(照 Soo Cheng 已驗證)
+campaign:
+  objective: "OUTCOME_SALES"
+  buying_type: "AUCTION"
+  bid_strategy: "LOWEST_COST_WITHOUT_CAP"   # = Highest volume
+  budget_level: "campaign"                  # CBO
+
+# Ad / Creative 預設
+creative_defaults:
+  call_to_action: "SIGN_UP"
+  display_url: ""
+
+# 手動素材清單(選用)。一般留空 —— 用 video-pipeline 自動上傳 Drive 影片並寫文案。
+# 若要手動指定,格式:{ video_id: "...", primary_text: "...", headline: "..." }
+creatives: []
+
+launch:
+  initial_status: "PAUSED"    # 一律先 PAUSED,檢查無誤才開 ACTIVE
+  ads_per_adset: 3

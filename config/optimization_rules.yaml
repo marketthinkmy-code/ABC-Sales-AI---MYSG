@@ -1,0 +1,51 @@
+# =============================================================
+# 優化規則 (Optimization Rules) — 每日排程引擎讀這個檔
+# 門檻值直接從 Soo Cheng 真實帳號反推校準:
+#   ACTIVE 的 CPL: 29.88 / 31.18 / 32.60 / 34.69 ... (留著、加碼)
+#   PAUSED 的 CPL: 63.09 / 65.05 / 95.93          (被關掉)
+# → kill 線設 60、winner 線設 35，正好卡在他們的分界。
+# 幣別 MYR。跑其他幣別帳號請等比例換算。
+# =============================================================
+
+target:
+  cpl_target_myr: 35            # 目標每次報名成本 (Website registration)
+  currency: "MYR"
+
+# --- 觀察期 (learning) —— 未達門檻前不動作，避免誤殺 --------
+learning:
+  min_spend_before_action_myr: 40   # 花不到這數字不判死 (約 1 個 CPL 的量)
+  min_days: 1
+
+# --- 🔴 KILL：關掉 loser -----------------------------------
+kill:
+  - name: "花錢零轉換"
+    when: "spend >= 2 * cpl_target_myr AND results == 0"   # 花 70 還 0 報名
+    action: "PAUSE"
+  - name: "CPL 過高"
+    when: "spend >= min_spend_before_action AND cost_per_result > 60"
+    action: "PAUSE"                                        # 對應 Soo Cheng 60+ 全關
+
+# --- 🟢 SCALE：加碼 winner ---------------------------------
+scale:
+  - name: "穩定低 CPL 加預算"
+    when: "cost_per_result < 35 AND spend >= 100"
+    action: "INCREASE_BUDGET"
+    budget_step_pct: 20            # 每次 +20%，一天最多加一次，避免重進 learning
+    max_daily_budget_myr: 320      # 上限對齊 Soo Cheng 最高的 LUXURY 320
+  - name: "極佳 CPL 複製放大"
+    when: "cost_per_result < 25 AND results >= 5"
+    action: "DUPLICATE"            # 複製到新 ad set 吃更多受眾
+    duplicate_budget_myr: 100
+
+# --- ♻️ CREATIVE FEEDBACK：贏家素材回饋做變體 --------------
+creative_feedback:
+  - name: "連贏 3 天的素材"
+    when: "ad.cost_per_result < 30 for 3 consecutive days"
+    action: "FLAG_FOR_VARIATION"   # 寫進報表，通知用同角度再產變體 (Phase 1)
+
+# --- 保護欄 (guardrails) —— 防手滑 -------------------------
+guardrails:
+  max_pauses_per_run: 10          # 單次最多關 10 支，超過先報警不執行
+  max_budget_increase_per_run_pct: 20
+  never_touch_status: ["ARCHIVED", "DELETED"]
+  dry_run: true                   # 首次跑設 true 只出建議、不真的改；驗證後改 false
