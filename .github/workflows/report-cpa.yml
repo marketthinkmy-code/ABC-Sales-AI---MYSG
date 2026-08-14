@@ -17,17 +17,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Organize names (rename campaign/adset/ads)
+      - name: Activate video campaign (set ACTIVE)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-        run: python organize_names.py --media Image --match "IMG | IMG3"
-      - name: Commit KB
-        run: |
-          git config user.name "claude-bot"
-          git config user.email "noreply@anthropic.com"
-          git add reports/
-          git commit -m "organize names + KB $(date -u +%F)" || echo "no changes"
-          git pull --rebase origin "${{ github.ref_name }}" || true
-          git push
+        run: python activate.py --match "AI獲客 · Video"
