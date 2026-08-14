@@ -35,6 +35,8 @@ jobs:
           DRY_RUN: "false"
           # 只加「新影片」(用 KB 去重),不動已上的
           FORCE_REBUILD: "false"
+          # APPEND=true:不刪 campaign,只補 KB 還沒記錄的影片(補上次失敗那幾支)
+          APPEND: "true"
         run: python video_pipeline.py --round VID1
       - name: Commit KB
         run: |

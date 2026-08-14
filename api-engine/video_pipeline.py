@@ -17,6 +17,7 @@ import naming as N
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.advideo import AdVideo
 from facebook_business.adobjects.adset import AdSet
+from facebook_business.adobjects.campaign import Campaign
 
 FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID") or "1mUL6VRHG33kcPSL372ELSrZBB_R7ogN6"
 COPY_MODEL = os.environ.get("COPY_MODEL") or "claude-sonnet-5"
@@ -27,6 +28,8 @@ VIDEO_BUDGET = float(os.environ.get("VIDEO_CBO_BUDGET") or 2000)
 PER_ADSET = int(os.environ.get("VIDEOS_PER_ADSET") or 3)
 # 每支/每組之間的節流秒數,避免爆量觸發帳號速率限制。
 PACE = float(os.environ.get("PACE_SEC") or 3)
+# APPEND=true:不刪 campaign,只把「KB 裡還沒記錄」的影片補上(補跑失敗的那幾支用)。
+APPEND = (os.environ.get("APPEND") or "").strip().lower() == "true"
 
 STYLE = """你是 MTC「AI 自動回覆・幫你獲客」品牌的頂尖直效文案(Direct-Response)。全部用繁體中文。
 受眾:台灣靠私訊成交的老闆(美業、健身、顧問、課程導師、實體店)——有自己的官方生意(官網/粉專/IG/LINE),
@@ -202,6 +205,15 @@ def tw_chinese_locales():
     return [31]   # 31 = Chinese (Taiwan),繁體
 
 
+def find_campaign(account, name):
+    camps = C.fb_retry(lambda: list(account.get_campaigns(
+        fields=["id", "name"], params={"limit": 200})))
+    for c in camps:
+        if (c.get("name") or "") == name:
+            return c["id"]
+    return None
+
+
 def make_tw_adset(account, camp, src, locales, tmpl, group_idx):
     """clone 合規 ad set 到 CBO campaign,覆寫成 台灣 + 繁體中文 的廣泛受眾,依規則命名。"""
     adset_id = L.clone_compliant_adset(account, camp, "tmp", src)
@@ -223,16 +235,21 @@ def run(round_tag):
     svc = drive_service()
     vids = list_videos(svc)
     kbo = KB.load()
-    # 影片 pipeline 是「刪同名 campaign + 整批重建」的語意:每次都重建資料夾裡全部影片。
-    # 因此不做 KB 去重門檻(否則部分失敗後重跑,已記錄的影片會被跳過卻又被刪掉→變沒廣告)。
-    new = list(vids)
+    # 兩種語意:
+    #  預設(整批重建):刪同名 campaign + 重建資料夾裡全部影片,不做 KB 去重。
+    #  APPEND:不刪 campaign,只補「KB 還沒記錄」的影片(補跑上次失敗那幾支)。
+    if APPEND:
+        done = KB.done_ids(kbo)
+        new = [f for f in vids if f["id"] not in done]
+    else:
+        new = list(vids)
     nums = KB.number_batch(new)          # V5→5 等檔名編號,沒有就自動 1..N
     # 每 PER_ADSET 支切一個 ad set(WK:一個 asset 最多 3 支)。
     groups = [new[i:i + PER_ADSET] for i in range(0, len(new), PER_ADSET)]
-    print(f"[video] 資料夾共 {len(vids)} 支,已上 {len(vids)-len(new)},新影片 {len(new)} "
+    print(f"[video] 資料夾共 {len(vids)} 支,{'APPEND 補' if APPEND else '重建'} {len(new)} 支 "
           f"→ {len(groups)} 個 ad set(每組≤{PER_ADSET}) | DRY_RUN={C.DRY_RUN}")
     if not new:
-        print("  沒有新影片,結束。")
+        print("  沒有要處理的影片,結束。")
         return
     for gi, g in enumerate(groups, 1):
         print(f"  組{gi}: {[f['name'] for f in g]}")
@@ -254,19 +271,31 @@ def run(round_tag):
     tmpl = C.load_yaml("launch_template.yaml")["ad_set"]
     locales = tw_chinese_locales()
     print(f"  繁體中文 locale = {locales}")
-    # 重跑先清掉同名的舊 PAUSED campaign,避免重複。
-    L.delete_existing_campaigns(account, N.campaign_name("Video"))
-    # CBO campaign(預算在 campaign 層 = WK 指定 2000 TWD/日),objective 沿用帳號設定。
-    camp = C.fb_retry(account.create_campaign, params={
-        "name": N.campaign_name("Video"), "objective": C.OBJECTIVE,
-        "special_ad_categories": [], "status": "PAUSED",
-        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-        "daily_budget": C.to_minor(VIDEO_BUDGET),
-    })["id"]
-    print(f"  ✓ CBO campaign {camp}(日預算 {VIDEO_BUDGET:.0f} TWD): {N.campaign_name('Video')}")
+    cname = N.campaign_name("Video")
+    gstart = 1
+    if APPEND:
+        camp = find_campaign(account, cname)
+        if camp:
+            existing = C.fb_retry(lambda: list(Campaign(camp).get_ad_sets(fields=["id"])))
+            gstart = len(existing) + 1
+            print(f"  APPEND:沿用現有 campaign {camp}(已有 {len(existing)} 個 ad set,補的從 組{gstart} 起)")
+    else:
+        camp = None
+    if not camp:
+        # 重跑先清掉同名的舊 PAUSED campaign,避免重複。
+        if not APPEND:
+            L.delete_existing_campaigns(account, cname)
+        # CBO campaign(預算在 campaign 層 = WK 指定 2000 TWD/日),objective 沿用帳號設定。
+        camp = C.fb_retry(account.create_campaign, params={
+            "name": cname, "objective": C.OBJECTIVE,
+            "special_ad_categories": [], "status": "PAUSED",
+            "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+            "daily_budget": C.to_minor(VIDEO_BUDGET),
+        })["id"]
+        print(f"  ✓ CBO campaign {camp}(日預算 {VIDEO_BUDGET:.0f} TWD): {cname}")
 
     n = 0
-    for gi, g in enumerate(groups, 1):
+    for gi, g in enumerate(groups, gstart):
         adset_id = make_tw_adset(account, camp, src, locales, tmpl, gi)
         print(f"  ── 組{gi} ad set {adset_id}(台灣 · 繁中)")
         for f in g:
@@ -291,6 +320,8 @@ def run(round_tag):
                     ad_id = C.fb_retry(create_video_ad, account, adset_id, vid,
                                        thumbnail(vid), pt, hl, name)
                     KB.record(kbo, fid, "VID", nums[fid], ad_id, name, fname)
+                    if APPEND:
+                        KB.save(kbo)     # 補跑模式即存,失敗重跑會跳過已補好的
                     n += 1
                     print(f"       ✓ 廣告 ad={ad_id}")
                 except Exception as e:
