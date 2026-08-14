@@ -23,6 +23,8 @@ COPY_MODEL = os.environ.get("COPY_MODEL") or "claude-sonnet-5"
 FORCE = (os.environ.get("FORCE_REBUILD") or "").strip().lower() == "true"
 # 影片 campaign 用 CBO,預算在 campaign 層(WK 指定 2000 TWD/日)。
 VIDEO_BUDGET = float(os.environ.get("VIDEO_CBO_BUDGET") or 2000)
+# 一個 ad set 最多放幾支影片(WK 指定 3)。16 支 → 6 個 ad set(3/3/3/3/2/2)。
+PER_ADSET = int(os.environ.get("VIDEOS_PER_ADSET") or 3)
 
 STYLE = """你是 MTC「AI 自動回覆・幫你獲客」品牌的頂尖直效文案(Direct-Response)。全部用繁體中文。
 受眾:台灣靠私訊成交的老闆(美業、健身、顧問、課程導師、實體店)——有自己的官方生意(官網/粉專/IG/LINE),
@@ -181,6 +183,38 @@ def already_uploaded_ids(account):
     return ids
 
 
+def tw_chinese_locales():
+    """回傳台灣繁體中文的 Meta locale key。動態查,查不到就用預設 [31]=Chinese(Taiwan)。"""
+    try:
+        from facebook_business.adobjects.targetingsearch import TargetingSearch
+        rows = TargetingSearch.search(params={"q": "Chinese", "type": "adlocale"})
+        keys = []
+        for r in rows:
+            nm = (r.get("name") or "")
+            if "Taiwan" in nm or "Traditional" in nm:
+                keys.append(int(r["key"]))
+        if keys:
+            return sorted(set(keys))
+    except Exception as e:
+        print(f"  (locale 查詢失敗,用預設繁中 Chinese(Taiwan): {e})")
+    return [31]   # 31 = Chinese (Taiwan),繁體
+
+
+def make_tw_adset(account, camp, src, locales, tmpl, group_idx):
+    """clone 合規 ad set 到 CBO campaign,覆寫成 台灣 + 繁體中文 的廣泛受眾,依規則命名。"""
+    adset_id = L.clone_compliant_adset(account, camp, "tmp", src)
+    # 台灣地區 + 繁體中文語言(WK:Location=台灣、Language=繁中,絕對不變)。
+    AdSet(adset_id).api_update(params={"targeting": {
+        "geo_locations": {"countries": tmpl["geo"]["countries"]},   # ["TW"]
+        "age_min": tmpl.get("age_min", 25),
+        "age_max": tmpl.get("age_max", 55),
+        "locales": locales,
+    }})
+    tgt = AdSet(adset_id).api_get(fields=["targeting"]).get("targeting") or {}
+    AdSet(adset_id).api_update(params={"name": f"{N.adset_name(tgt)} · 組{group_idx}"})
+    return adset_id
+
+
 def run(round_tag):
     C.init_api()
     account = AdAccount(C.ACT_ID)
@@ -190,62 +224,75 @@ def run(round_tag):
     done = KB.done_ids(kbo) | already_uploaded_ids(account)
     new = vids if FORCE else [f for f in vids if f["id"] not in done]
     nums = KB.number_batch(new)          # V5→5 等檔名編號,沒有就自動 1..N
-    print(f"[video] 資料夾共 {len(vids)} 支,已上 {len(vids)-len(new)},新影片 {len(new)} | DRY_RUN={C.DRY_RUN}")
+    # 每 PER_ADSET 支切一個 ad set(WK:一個 asset 最多 3 支)。
+    groups = [new[i:i + PER_ADSET] for i in range(0, len(new), PER_ADSET)]
+    print(f"[video] 資料夾共 {len(vids)} 支,已上 {len(vids)-len(new)},新影片 {len(new)} "
+          f"→ {len(groups)} 個 ad set(每組≤{PER_ADSET}) | DRY_RUN={C.DRY_RUN}")
     if not new:
         print("  沒有新影片,結束。")
         return
+    for gi, g in enumerate(groups, 1):
+        print(f"  組{gi}: {[f['name'] for f in g]}")
 
-    adset_id = None
-    if not C.DRY_RUN:
-        L.ensure_page_advertiser()
-        winners = L.find_winner_ads(account, C.WINNER_AD_KEYWORDS)
-        if not winners:
-            raise SystemExit("找不到合規來源(贏家 ad set),無法建容器。")
-        src = winners[0]["adset_id"]
-        # CBO campaign(預算在 campaign 層 = WK 指定 2000 TWD/日),objective 沿用帳號設定。
-        camp = account.create_campaign(params={
-            "name": N.campaign_name("Video"), "objective": C.OBJECTIVE,
-            "special_ad_categories": [], "status": "PAUSED",
-            "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-            "daily_budget": C.to_minor(VIDEO_BUDGET),
-        })["id"]
-        # clone 贏家的合規 ad set,繼承台灣廣告主聲明(CBO 下 ad set 不設預算)。
-        adset_id = L.clone_compliant_adset(account, camp, "tmp", src)
-        tgt = AdSet(adset_id).api_get(fields=["targeting"]).get("targeting") or {}
-        AdSet(adset_id).api_update(params={"name": N.adset_name(tgt)})
-        print(f"  合規容器建好(CBO {VIDEO_BUDGET:.0f} TWD/日): {N.campaign_name('Video')} → ad set {adset_id}")
+    if C.DRY_RUN:
+        for f in new:
+            try:
+                pt, hl = write_copy(f["name"])
+                print(f"\n===== {f['name']} (#{nums[f['id']]}) =====\n[標題] {hl}\n[文案 {len(pt)}字]\n{pt}\n")
+            except Exception as e:
+                print(f"  ⚠️ {f['name']} 寫文案失敗: {e}")
+        return
+
+    L.ensure_page_advertiser()
+    winners = L.find_winner_ads(account, C.WINNER_AD_KEYWORDS)
+    if not winners:
+        raise SystemExit("找不到合規來源(贏家 ad set),無法建容器。")
+    src = winners[0]["adset_id"]
+    tmpl = C.load_yaml("launch_template.yaml")["ad_set"]
+    locales = tw_chinese_locales()
+    print(f"  繁體中文 locale = {locales}")
+    # 重跑先清掉同名的舊 PAUSED campaign,避免重複。
+    L.delete_existing_campaigns(account, N.campaign_name("Video"))
+    # CBO campaign(預算在 campaign 層 = WK 指定 2000 TWD/日),objective 沿用帳號設定。
+    camp = account.create_campaign(params={
+        "name": N.campaign_name("Video"), "objective": C.OBJECTIVE,
+        "special_ad_categories": [], "status": "PAUSED",
+        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+        "daily_budget": C.to_minor(VIDEO_BUDGET),
+    })["id"]
+    print(f"  ✓ CBO campaign {camp}(日預算 {VIDEO_BUDGET:.0f} TWD): {N.campaign_name('Video')}")
 
     n = 0
-    for f in new:
-        fid, fname = f["id"], f["name"]
-        try:
-            pt, hl = write_copy(fname)
-        except Exception as e:
-            print(f"  ⚠️ {fname} 寫文案失敗,跳過: {e}")
-            continue
-        print(f"  ── {fname}\n     標題: {hl}\n     文案({len(pt)}字): {pt[:50]}...")
-        if C.DRY_RUN:
-            continue
-        with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, re.sub(r"[^\w.-]", "_", fname))
+    for gi, g in enumerate(groups, 1):
+        adset_id = make_tw_adset(account, camp, src, locales, tmpl, gi)
+        print(f"  ── 組{gi} ad set {adset_id}(台灣 · 繁中)")
+        for f in g:
+            fid, fname = f["id"], f["name"]
             try:
-                download(svc, fid, p)
-                vid = upload_video(account, p)
-                print(f"     ↑ 上傳完成 video={vid},等待處理…")
-                if not wait_ready(vid):
-                    print("     ⚠️ 影片處理逾時,先跳過(稍後可重跑)")
-                    continue
-                theme = re.sub(r"\s+", "", hl)[:24] or fname[:16]
-                name = N.ad_name("VID", nums[fid], theme)
-                ad_id = create_video_ad(account, adset_id, vid, thumbnail(vid), pt, hl, name)
-                KB.record(kbo, fid, "VID", nums[fid], ad_id, name, fname)
-                n += 1
-                print(f"     ✓ 建好影片廣告 ad={ad_id}")
+                pt, hl = write_copy(fname)
             except Exception as e:
-                print(f"     ⚠️ 建影片廣告失敗,跳過: {e}")
-    if not C.DRY_RUN:
-        KB.save(kbo)
-        print(f"→ 已上 {n} 支新影片為 PAUSED 影片廣告。檢查無誤後開 ACTIVE。")
+                print(f"     ⚠️ {fname} 寫文案失敗,跳過: {e}")
+                continue
+            print(f"     · {fname}｜標題:{hl}｜文案{len(pt)}字")
+            with tempfile.TemporaryDirectory() as d:
+                p = os.path.join(d, re.sub(r"[^\w.-]", "_", fname))
+                try:
+                    download(svc, fid, p)
+                    vid = upload_video(account, p)
+                    print(f"       ↑ 上傳 video={vid},等待處理…")
+                    if not wait_ready(vid):
+                        print("       ⚠️ 影片處理逾時,先跳過(稍後可重跑)")
+                        continue
+                    theme = re.sub(r"\s+", "", hl)[:24] or fname[:16]
+                    name = N.ad_name("VID", nums[fid], theme)
+                    ad_id = create_video_ad(account, adset_id, vid, thumbnail(vid), pt, hl, name)
+                    KB.record(kbo, fid, "VID", nums[fid], ad_id, name, fname)
+                    n += 1
+                    print(f"       ✓ 廣告 ad={ad_id}")
+                except Exception as e:
+                    print(f"       ⚠️ 建影片廣告失敗,跳過: {e}")
+    KB.save(kbo)
+    print(f"→ 已上 {n} 支影片,分 {len(groups)} 個 ad set(台灣·繁中,CBO {VIDEO_BUDGET:.0f}/日),全 PAUSED。檢查無誤後開 ACTIVE。")
 
 
 if __name__ == "__main__":

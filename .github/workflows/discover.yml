@@ -28,6 +28,10 @@ jobs:
           LANDING_URL: ${{ secrets.LANDING_URL }}
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          # WK 的 16 支影片放這個資料夾(VIDEOS / 1AUOQes4…)
+          DRIVE_FOLDER_ID: "1AUOQes4dAqM-AXupG4kX_xbIBoMbbwow"
+          # 每個 ad set 最多 3 支 → 16 支切 6 個 ad set
+          VIDEOS_PER_ADSET: "3"
           DRY_RUN: "false"
           # 只加「新影片」(用 KB 去重),不動已上的
           FORCE_REBUILD: "false"
