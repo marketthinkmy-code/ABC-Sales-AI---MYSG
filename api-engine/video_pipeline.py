@@ -21,6 +21,8 @@ from facebook_business.adobjects.adset import AdSet
 FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID") or "1mUL6VRHG33kcPSL372ELSrZBB_R7ogN6"
 COPY_MODEL = os.environ.get("COPY_MODEL") or "claude-sonnet-5"
 FORCE = (os.environ.get("FORCE_REBUILD") or "").strip().lower() == "true"
+# 影片 campaign 用 CBO,預算在 campaign 層(WK 指定 2000 TWD/日)。
+VIDEO_BUDGET = float(os.environ.get("VIDEO_CBO_BUDGET") or 2000)
 
 STYLE = """你是 MTC「AI 自動回覆・幫你獲客」品牌的頂尖直效文案(Direct-Response)。全部用繁體中文。
 受眾:台灣靠私訊成交的老闆(美業、健身、顧問、課程導師、實體店)——有自己的官方生意(官網/粉專/IG/LINE),
@@ -200,11 +202,18 @@ def run(round_tag):
         if not winners:
             raise SystemExit("找不到合規來源(贏家 ad set),無法建容器。")
         src = winners[0]["adset_id"]
-        camp = L.copy_source_campaign(account, N.campaign_name("Video"), src)
+        # CBO campaign(預算在 campaign 層 = WK 指定 2000 TWD/日),objective 沿用帳號設定。
+        camp = account.create_campaign(params={
+            "name": N.campaign_name("Video"), "objective": C.OBJECTIVE,
+            "special_ad_categories": [], "status": "PAUSED",
+            "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+            "daily_budget": C.to_minor(VIDEO_BUDGET),
+        })["id"]
+        # clone 贏家的合規 ad set,繼承台灣廣告主聲明(CBO 下 ad set 不設預算)。
         adset_id = L.clone_compliant_adset(account, camp, "tmp", src)
         tgt = AdSet(adset_id).api_get(fields=["targeting"]).get("targeting") or {}
         AdSet(adset_id).api_update(params={"name": N.adset_name(tgt)})
-        print(f"  合規容器建好: {N.campaign_name('Video')} → ad set {adset_id}")
+        print(f"  合規容器建好(CBO {VIDEO_BUDGET:.0f} TWD/日): {N.campaign_name('Video')} → ad set {adset_id}")
 
     n = 0
     for f in new:
