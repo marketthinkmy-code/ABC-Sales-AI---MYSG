@@ -223,9 +223,9 @@ def run(round_tag):
     svc = drive_service()
     vids = list_videos(svc)
     kbo = KB.load()
-    # 只靠 KB 去重,省掉一次整帳廣告掃描(降低 API 呼叫量,避免觸發帳號速率限制)。
-    done = KB.done_ids(kbo)
-    new = vids if FORCE else [f for f in vids if f["id"] not in done]
+    # 影片 pipeline 是「刪同名 campaign + 整批重建」的語意:每次都重建資料夾裡全部影片。
+    # 因此不做 KB 去重門檻(否則部分失敗後重跑,已記錄的影片會被跳過卻又被刪掉→變沒廣告)。
+    new = list(vids)
     nums = KB.number_batch(new)          # V5→5 等檔名編號,沒有就自動 1..N
     # 每 PER_ADSET 支切一個 ad set(WK:一個 asset 最多 3 支)。
     groups = [new[i:i + PER_ADSET] for i in range(0, len(new), PER_ADSET)]
@@ -291,7 +291,6 @@ def run(round_tag):
                     ad_id = C.fb_retry(create_video_ad, account, adset_id, vid,
                                        thumbnail(vid), pt, hl, name)
                     KB.record(kbo, fid, "VID", nums[fid], ad_id, name, fname)
-                    KB.save(kbo)          # 每支即存,中途被限流也不會全丟
                     n += 1
                     print(f"       ✓ 廣告 ad={ad_id}")
                 except Exception as e:
