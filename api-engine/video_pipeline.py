@@ -25,6 +25,8 @@ FORCE = (os.environ.get("FORCE_REBUILD") or "").strip().lower() == "true"
 VIDEO_BUDGET = float(os.environ.get("VIDEO_CBO_BUDGET") or 2000)
 # 一個 ad set 最多放幾支影片(WK 指定 3)。16 支 → 6 個 ad set(3/3/3/3/2/2)。
 PER_ADSET = int(os.environ.get("VIDEOS_PER_ADSET") or 3)
+# 每支/每組之間的節流秒數,避免爆量觸發帳號速率限制。
+PACE = float(os.environ.get("PACE_SEC") or 3)
 
 STYLE = """你是 MTC「AI 自動回覆・幫你獲客」品牌的頂尖直效文案(Direct-Response)。全部用繁體中文。
 受眾:台灣靠私訊成交的老闆(美業、健身、顧問、課程導師、實體店)——有自己的官方生意(官網/粉專/IG/LINE),
@@ -204,14 +206,14 @@ def make_tw_adset(account, camp, src, locales, tmpl, group_idx):
     """clone 合規 ad set 到 CBO campaign,覆寫成 台灣 + 繁體中文 的廣泛受眾,依規則命名。"""
     adset_id = L.clone_compliant_adset(account, camp, "tmp", src)
     # 台灣地區 + 繁體中文語言(WK:Location=台灣、Language=繁中,絕對不變)。
-    AdSet(adset_id).api_update(params={"targeting": {
+    C.fb_retry(AdSet(adset_id).api_update, params={"targeting": {
         "geo_locations": {"countries": tmpl["geo"]["countries"]},   # ["TW"]
         "age_min": tmpl.get("age_min", 25),
         "age_max": tmpl.get("age_max", 55),
         "locales": locales,
     }})
-    tgt = AdSet(adset_id).api_get(fields=["targeting"]).get("targeting") or {}
-    AdSet(adset_id).api_update(params={"name": f"{N.adset_name(tgt)} · 組{group_idx}"})
+    tgt = C.fb_retry(lambda: AdSet(adset_id).api_get(fields=["targeting"]).get("targeting")) or {}
+    C.fb_retry(AdSet(adset_id).api_update, params={"name": f"{N.adset_name(tgt)} · 組{group_idx}"})
     return adset_id
 
 
@@ -221,7 +223,8 @@ def run(round_tag):
     svc = drive_service()
     vids = list_videos(svc)
     kbo = KB.load()
-    done = KB.done_ids(kbo) | already_uploaded_ids(account)
+    # 只靠 KB 去重,省掉一次整帳廣告掃描(降低 API 呼叫量,避免觸發帳號速率限制)。
+    done = KB.done_ids(kbo)
     new = vids if FORCE else [f for f in vids if f["id"] not in done]
     nums = KB.number_batch(new)          # V5→5 等檔名編號,沒有就自動 1..N
     # 每 PER_ADSET 支切一個 ad set(WK:一個 asset 最多 3 支)。
@@ -244,7 +247,7 @@ def run(round_tag):
         return
 
     L.ensure_page_advertiser()
-    winners = L.find_winner_ads(account, C.WINNER_AD_KEYWORDS)
+    winners = C.fb_retry(L.find_winner_ads, account, C.WINNER_AD_KEYWORDS)
     if not winners:
         raise SystemExit("找不到合規來源(贏家 ad set),無法建容器。")
     src = winners[0]["adset_id"]
@@ -254,7 +257,7 @@ def run(round_tag):
     # 重跑先清掉同名的舊 PAUSED campaign,避免重複。
     L.delete_existing_campaigns(account, N.campaign_name("Video"))
     # CBO campaign(預算在 campaign 層 = WK 指定 2000 TWD/日),objective 沿用帳號設定。
-    camp = account.create_campaign(params={
+    camp = C.fb_retry(account.create_campaign, params={
         "name": N.campaign_name("Video"), "objective": C.OBJECTIVE,
         "special_ad_categories": [], "status": "PAUSED",
         "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
@@ -278,19 +281,23 @@ def run(round_tag):
                 p = os.path.join(d, re.sub(r"[^\w.-]", "_", fname))
                 try:
                     download(svc, fid, p)
-                    vid = upload_video(account, p)
+                    vid = C.fb_retry(upload_video, account, p)
                     print(f"       ↑ 上傳 video={vid},等待處理…")
                     if not wait_ready(vid):
                         print("       ⚠️ 影片處理逾時,先跳過(稍後可重跑)")
                         continue
                     theme = re.sub(r"\s+", "", hl)[:24] or fname[:16]
                     name = N.ad_name("VID", nums[fid], theme)
-                    ad_id = create_video_ad(account, adset_id, vid, thumbnail(vid), pt, hl, name)
+                    ad_id = C.fb_retry(create_video_ad, account, adset_id, vid,
+                                       thumbnail(vid), pt, hl, name)
                     KB.record(kbo, fid, "VID", nums[fid], ad_id, name, fname)
+                    KB.save(kbo)          # 每支即存,中途被限流也不會全丟
                     n += 1
                     print(f"       ✓ 廣告 ad={ad_id}")
                 except Exception as e:
                     print(f"       ⚠️ 建影片廣告失敗,跳過: {e}")
+            time.sleep(PACE)              # 每支之間稍等,避免爆量觸發限流
+        time.sleep(PACE * 3)             # 每個 ad set 之間多等一下
     KB.save(kbo)
     print(f"→ 已上 {n} 支影片,分 {len(groups)} 個 ad set(台灣·繁中,CBO {VIDEO_BUDGET:.0f}/日),全 PAUSED。檢查無誤後開 ACTIVE。")
 

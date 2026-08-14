@@ -41,10 +41,11 @@ def _custom_event_type():
 def delete_existing_campaigns(account, name):
     """刪掉同名的 PAUSED campaign(上次失敗留下的空殼)，讓 launch 可重跑不留垃圾。"""
     try:
-        for c in account.get_campaigns(fields=["id", "name", "effective_status"],
-                                       params={"limit": 200}):
+        camps = C.fb_retry(lambda: list(account.get_campaigns(
+            fields=["id", "name", "effective_status"], params={"limit": 200})))
+        for c in camps:
             if c.get("name") == name and c.get("effective_status") in ("PAUSED", "CAMPAIGN_PAUSED"):
-                Campaign(c["id"]).api_delete()
+                C.fb_retry(Campaign(c["id"]).api_delete)
                 print(f"  (清掉同名空 campaign {c['id']})")
     except Exception as e:
         print(f"  (清理同名 campaign 略過: {e})")
@@ -114,7 +115,7 @@ def create_campaign(account, name, with_budget=True, objective=None):
 def clone_compliant_adset(account, campaign_id, name, src_adset_id):
     """複製指定的已合規 ad set(繼承台灣廣告主聲明)到新 campaign，清掉舊廣告，回傳新 ad set id。"""
     budget = C.load_yaml("launch_template.yaml")["ad_set"]["daily_budget_myr"]
-    resp = AdSet(src_adset_id).create_copy(params={
+    resp = C.fb_retry(AdSet(src_adset_id).create_copy, params={
         "campaign_id": campaign_id,
         "status_option": "PAUSED",
     })
@@ -124,14 +125,14 @@ def clone_compliant_adset(account, campaign_id, name, src_adset_id):
     if not new_id:
         new_id = resp["copied_adset_id"]
     new_aset = AdSet(new_id)
-    new_aset.api_update(params={"name": name, "status": "PAUSED"})
+    C.fb_retry(new_aset.api_update, params={"name": name, "status": "PAUSED"})
     # 預算：若母 campaign 是 CBO，ad set 不能設預算 → 失敗就略過(沿用來源設定)
     try:
         new_aset.api_update(params={"daily_budget": C.to_minor(budget)})
     except Exception:
         pass
     # 刪掉複製過來的舊廣告，改放我們的贏家
-    for ad in new_aset.get_ads(fields=["id"]):
+    for ad in C.fb_retry(lambda: list(new_aset.get_ads(fields=["id"]))):
         try:
             Ad(ad["id"]).api_delete()
         except Exception:
