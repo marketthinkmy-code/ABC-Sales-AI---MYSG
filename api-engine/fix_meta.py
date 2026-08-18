@@ -27,13 +27,17 @@ ZERO_DECIMAL = {"TWD", "JPY", "KRW", "VND", "CLP", "HUF", "ISK", "UGX",
 
 
 def chinese_locales():
-    rows = C.fb_retry(lambda: list(TargetingSearch.search(
-        params={"q": "Chinese", "type": "adlocale"})))
-    out = []
-    for r in rows:
-        key, name = r.get("key"), (r.get("name") or "")
-        print(f"    locale key={key}  name={name}")
-        out.append((int(key), name))
+    out, seen = [], set()
+    for q in ("Chinese", "Taiwan", "Traditional", "Mandarin"):
+        rows = C.fb_retry(lambda: list(TargetingSearch.search(
+            params={"q": q, "type": "adlocale"})))
+        for r in rows:
+            key, name = int(r.get("key")), (r.get("name") or "")
+            if key in seen:
+                continue
+            seen.add(key)
+            print(f"    locale key={key}  name={name}")
+            out.append((key, name))
     return out
 
 
@@ -41,9 +45,11 @@ def pick_taiwan(locs):
     for k, n in locs:
         if "Taiwan" in n or "zh_TW" in n:
             return k
-    # 退而求其次:繁體/香港也是繁中,但我們要台灣;沒有就回 None(不亂設)
     for k, n in locs:
         if "Traditional" in n:
+            return k
+    for k, n in locs:               # 沒有台灣/繁中細項,就用 Chinese(All)(配合 geo=TW)
+        if "Chinese" in n:
             return k
     return None
 
@@ -63,16 +69,14 @@ def run():
     camps = [c for c in C.fb_retry(lambda: list(account.get_campaigns(
         fields=["id", "name"], params={"limit": 300}))) if MATCH in (c.get("name") or "")]
     print(f"符合「{MATCH}」的 campaign:{len(camps)} 個")
-    sample_shown = False
     for c in camps:
         asets = C.fb_retry(lambda: list(Campaign(c["id"]).get_ad_sets(
             fields=["id", "name", "daily_budget", "targeting"])))
-        if not sample_shown and asets:
-            print(f"  抽樣 ad set 目前 daily_budget = {asets[0].get('daily_budget')}"
-                  f"(這個數字 ÷ {off} = 目前實際 {cur})")
-            sample_shown = True
+        print(f"  campaign {c['id']} {c.get('name')} — {len(asets)} 個 ad set")
+        for a in asets:
+            locs_now = (a.get("targeting") or {}).get("locales")
+            print(f"     · {a.get('name')}｜daily_budget(raw)={a.get('daily_budget')}｜locales={locs_now}")
         if DRY:
-            print(f"  [dry] campaign {c['id']} {c.get('name')} — {len(asets)} 個 ad set")
             continue
         if zt is None:
             raise SystemExit("找不到 Chinese(Taiwan) locale,停止(不亂設語言)。")
