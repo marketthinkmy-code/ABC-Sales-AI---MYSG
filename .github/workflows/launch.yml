@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Build ABO video campaign from library videos
+      - name: Build ABO image campaign from static ad renders
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
@@ -39,11 +39,10 @@ jobs:
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
           # ABO:每個 ad set 每日 500 TWD;30-55 台灣繁中;手動版位
-          VIDEO_ADSET_BUDGET: "500"
-          VIDEOS_PER_ADSET: "3"
+          IMAGE_ADSET_BUDGET: "500"
           AGE_MIN: "30"
           AGE_MAX: "55"
-          # 建完自動開 ACTIVE(全 16 支都建成才開)
+          # 建完自動開 ACTIVE(全部建成才開)
           ACTIVATE: "true"
           DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
-        run: python launch_from_library.py
+        run: python launch_static_ads.py
