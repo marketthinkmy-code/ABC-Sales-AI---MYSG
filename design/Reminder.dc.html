@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; }
+    a { color: #6b4eff; } a:hover { color: #4a32d0; }
+    .rt { font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; }
+  </style>
+</helmet>
+
+<div class="rt" style="position: relative; width: 1080px; height: 1080px; background: #c8f135; overflow: hidden;">
+
+  <div style="position: absolute; top: -150px; right: -140px; width: 440px; height: 440px; border-radius: 50%; background: #d6f96b; opacity: 0.6;"></div>
+
+  <!-- top pill -->
+  <div style="position: absolute; top: 56px; left: 64px; display: flex; align-items: center; gap: 12px; background: #10210a; color: #ffffff; font-weight: 900; font-size: 28px; padding: 14px 26px; border-radius: 999px;">
+    <span style="width: 16px; height: 16px; border-radius: 50%; background: #ff4326; display: inline-block;"></span>
+    今晚 LIVE · 免費線上分享會
+  </div>
+
+  <!-- starburst badge -->
+  <div style="position: absolute; top: 44px; right: 44px; width: 176px; height: 176px; z-index: 3;">
+    <div style="position: absolute; inset: 0; background: #ff4326; border-radius: 26px;"></div>
+    <div style="position: absolute; inset: 0; background: #ff4326; border-radius: 26px; transform: rotate(22.5deg);"></div>
+    <div style="position: absolute; inset: 0; background: #ff4326; border-radius: 26px; transform: rotate(45deg);"></div>
+    <div style="position: absolute; inset: 0; background: #ff4326; border-radius: 26px; transform: rotate(67.5deg);"></div>
+    <div style="position: absolute; inset: 16px; background: #ff4326; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #ffffff; transform: rotate(-8deg);">
+      <div style="font-weight: 700; font-size: 22px; line-height: 1;">今晚</div>
+      <div style="font-weight: 900; font-size: 44px; line-height: 1.02;">免費</div>
+      <div style="font-weight: 700; font-size: 20px; line-height: 1;">不重播</div>
+    </div>
+  </div>
+
+  <!-- headline -->
+  <div style="position: absolute; top: 150px; left: 64px; width: 820px;">
+    <div style="font-weight: 900; font-size: 108px; line-height: 1.0; color: #10210a; letter-spacing: -2px;">今晚 8:00</div>
+    <div style="margin-top: 16px; font-weight: 900; font-size: 58px; line-height: 1.12; color: #10210a;">
+      我直接<span style="display: inline-block; background: #6b4eff; color: #ffffff; padding: 2px 16px 8px; border-radius: 14px; box-shadow: 0 7px 0 rgba(16,33,10,0.14); transform: rotate(-1.5deg);">打開後台</span>
+    </div>
+    <div style="margin-top: 12px; font-weight: 900; font-size: 58px; line-height: 1.12; color: #10210a;">給你看 AI 怎麼把客人聊到成交 💰</div>
+  </div>
+
+  <!-- bullets card -->
+  <div style="position: absolute; top: 500px; left: 64px; width: 952px; background: #ffffff; border-radius: 30px; box-shadow: 0 26px 52px rgba(16,33,10,0.20); padding: 34px 40px;">
+    <div style="font-weight: 900; font-size: 30px; color: #6b4eff; margin-bottom: 22px;">今晚你會親眼看到 👇</div>
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; align-items: flex-start; gap: 16px;">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#12b76a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><path d="M20 6 9 17l-5-5"/></svg>
+        <div style="font-weight: 700; font-size: 33px; line-height: 1.32; color: #10210a;">客人說「太貴 / 我再想想」——AI 當場一句句化解</div>
+      </div>
+      <div style="display: flex; align-items: flex-start; gap: 16px;">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#12b76a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><path d="M20 6 9 17l-5-5"/></svg>
+        <div style="font-weight: 700; font-size: 33px; line-height: 1.32; color: #10210a;">已讀不回——AI 自動在對的時間跟進、把預約約好</div>
+      </div>
+      <div style="display: flex; align-items: flex-start; gap: 16px;">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#12b76a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><path d="M20 6 9 17l-5-5"/></svg>
+        <div style="font-weight: 700; font-size: 33px; line-height: 1.32; color: #10210a;">冷掉三個月的老名單——一鍵重新激活變回訂單</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- brand / CTA bar -->
+  <div style="position: absolute; left: 64px; right: 64px; top: 846px; display: flex; align-items: center; gap: 18px; background: #10210a; border-radius: 24px; padding: 22px 32px;">
+    <div style="flex-grow: 1;">
+      <div style="font-weight: 900; font-size: 40px; color: #ffffff;">⏰ 今晚 8:00 · 直播間見</div>
+      <div style="font-weight: 700; font-size: 25px; color: #c8f135;">AI 自動回覆・幫你獲客 ｜ 名額有限,不重播</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 11px; background: #c8f135; color: #10210a; font-weight: 900; font-size: 30px; padding: 18px 30px; border-radius: 16px;">
+      免費入場
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#10210a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
