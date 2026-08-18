@@ -19,11 +19,12 @@ from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.campaign import Campaign
 
-ADSET_BUDGET = float(os.environ.get("IMAGE_ADSET_BUDGET") or 500)   # ABO:每組每日 TWD
+ADSET_BUDGET = float(os.environ.get("IMAGE_ADSET_BUDGET") or 800)   # ABO:每組每日 TWD
 ACTIVATE = (os.environ.get("ACTIVATE") or "true").strip().lower() == "true"
 AGE_MIN = int(os.environ.get("AGE_MIN") or 30)
 AGE_MAX = int(os.environ.get("AGE_MAX") or 55)
-TW_LOCALE = [31]   # Chinese (Taiwan) = 繁體
+# 22 = Traditional Chinese (Taiwan)。已從 Meta targetingsearch 驗證(不是 31=葡萄牙語)。
+TW_LOCALE = [int(os.environ.get("TW_LOCALE") or 22)]
 DATA = os.path.join(C.ROOT, "config", "static_ads.json")
 
 

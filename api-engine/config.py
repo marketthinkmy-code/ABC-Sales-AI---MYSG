@@ -89,9 +89,19 @@ def init_api():
         FacebookAdsApi.init(access_token=ACCESS_TOKEN)
 
 
+# Meta 的零位小數貨幣:金額直接用原數,不 ×100(TWD 屬於這類,500 不可變 50,000)。
+_ZERO_DECIMAL = {"TWD", "JPY", "KRW", "VND", "CLP", "HUF", "ISK", "UGX",
+                 "PYG", "XAF", "XOF", "BIF", "DJF", "GNF", "KMF", "MGA",
+                 "RWF", "VUV", "XPF"}
+
+
+def currency_offset():
+    return 1 if (CURRENCY or "").upper() in _ZERO_DECIMAL else 100
+
+
 def to_minor(amount):
-    """Meta 預算用最小貨幣單位 (TWD 無小數視為整數 * 100 的慣例，SDK 用『分』)。"""
-    return int(round(float(amount) * 100))
+    """Meta 預算用最小貨幣單位。零位小數貨幣(TWD/JPY…)用原數,其餘 ×100。"""
+    return int(round(float(amount) * currency_offset()))
 
 
 def fb_retry(fn, *args, tries=6, base=60, **kwargs):

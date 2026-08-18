@@ -196,13 +196,13 @@ def tw_chinese_locales():
         keys = []
         for r in rows:
             nm = (r.get("name") or "")
-            if "Taiwan" in nm or "Traditional" in nm:
+            if "Taiwan" in nm:           # 只要台灣繁中
                 keys.append(int(r["key"]))
         if keys:
             return sorted(set(keys))
     except Exception as e:
         print(f"  (locale 查詢失敗,用預設繁中 Chinese(Taiwan): {e})")
-    return [31]   # 31 = Chinese (Taiwan),繁體
+    return [22]   # 22 = Traditional Chinese (Taiwan)(驗證過;31 是葡萄牙語)
 
 
 def find_campaign(account, name):

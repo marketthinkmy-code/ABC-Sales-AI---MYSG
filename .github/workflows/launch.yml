@@ -38,8 +38,9 @@ jobs:
           LANDING_URL: ${{ secrets.LANDING_URL }}
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
-          # ABO:每個 ad set 每日 500 TWD;30-55 台灣繁中;手動版位
-          IMAGE_ADSET_BUDGET: "500"
+          # ABO:每個 ad set 每日 800 TWD;30-55 台灣繁中(locale 22);手動版位
+          IMAGE_ADSET_BUDGET: "800"
+          TW_LOCALE: "22"
           AGE_MIN: "30"
           AGE_MAX: "55"
           # 建完自動開 ACTIVE(全部建成才開)
