@@ -3,7 +3,12 @@ name: Report CPA (campaign lifetime spend)
 # 分支上暫時借用這個(已註冊在 main 的)workflow 來按需跑 weekly_cpa,
 # 正式排程走 weekly-cpa.yml(合併到 main 後每週三自動跑)。
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      live:
+        description: "true=真的改 locale+預算 / false=只讀診斷"
+        required: true
+        default: "false"
 
 permissions:
   contents: write
@@ -17,9 +22,12 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Activate video campaign (set ACTIVE)
+      - name: Fix locale + budget on existing ad sets
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-        run: python activate.py --match "AI獲客 · Video"
+          MATCH: "AI獲客 ·"
+          ADSET_BUDGET: "800"
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python fix_meta.py
