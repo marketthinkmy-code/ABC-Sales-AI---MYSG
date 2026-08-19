@@ -8,3 +8,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# 客戶名單／匯出檔（含 PII，不進 git）
+data/*.xlsx
+data/*.csv
