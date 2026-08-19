@@ -1,19 +1,13 @@
-name: Creative Pipeline (Drive image -> ad)
+name: Creative Pipeline (Drive static image -> ad)
 
-# 掃 Drive 資料夾的新圖 → AI 寫文案 → 建圖片廣告(PAUSED)
+# 把 Drive 資料夾裡做好的靜圖 + config/simage_copies.json 文案 → ABO 圖片廣告
 on:
   workflow_dispatch:
     inputs:
-      round:
-        description: "本輪標記 (如 IMG1)"
-        required: true
-        default: "IMG1"
       live:
-        description: "true=真的建廣告(PAUSED) / false=只試跑列新圖+文案"
+        description: "true=真的建廣告並開ACTIVE / false=只列圖↔文案配對"
         required: true
         default: "false"
-  schedule:
-    - cron: "0 2 * * *"   # 每天 UTC 02:00 = 台北 10:00 掃一次
 
 permissions:
   contents: write
@@ -27,26 +21,26 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Run creative pipeline
+      - name: Build ABO image ads from Drive folder + provided copies
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
           GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # 這批新圖在新資料夾(IMAGES / 1AUOQes4…)
-          DRIVE_FOLDER_ID: "1AUOQes4dAqM-AXupG4kX_xbIBoMbbwow"
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
           LANDING_URL: ${{ secrets.LANDING_URL }}
-          # 排程自動跑時要真的建；手動時看 live 輸入
-          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || (github.event.inputs.live == 'true' && 'false' || 'true') }}
-          # 一律只加「真正的新圖」(用 [gd:] 去重)。用新的 round 標記建新容器,不動舊批次。
-          FORCE_REBUILD: "false"
-        run: python creative_pipeline.py --round "${{ github.event.inputs.round || 'AUTO' }}"
-      - name: Commit KB
-        run: |
-          git config user.name "claude-bot"
-          git config user.email "noreply@anthropic.com"
-          git add reports/creatives_kb.json || true
-          git commit -m "creatives KB (image) $(date -u +%F)" || echo "no changes"
-          git pull --rebase origin "${{ github.ref_name }}" || true
-          git push || true
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          # WK 這批 7 張靜圖的資料夾
+          DRIVE_FOLDER_ID: "1rkKX_2sYQCPAxwIF_wVLHljDNW1wMiCq"
+          # ABO 800 TWD/組;30-55 台灣繁中(locale 22);手動版位;每組≤3
+          IMAGE_ADSET_BUDGET: "800"
+          TW_LOCALE: "22"
+          AGE_MIN: "30"
+          AGE_MAX: "55"
+          VIDEOS_PER_ADSET: "3"
+          ACTIVATE: "true"
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python launch_drive_static.py
