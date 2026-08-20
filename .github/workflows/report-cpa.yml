@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Audit last-N-days spend vs conversion
+      - name: Campaign status vs conversion audit
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
@@ -30,4 +30,4 @@ jobs:
           GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
           PRICE_PER_SALE: "39800"
           RECENT_DAYS: ${{ github.event.inputs.recent_days }}
-        run: python spend_audit.py
+        run: python campaign_status_audit.py
