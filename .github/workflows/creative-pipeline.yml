@@ -1,46 +1,48 @@
-name: Creative Pipeline (Drive static image -> ad)
+name: Creative Pipeline (Drive video -> ABO ad)
 
-# 把 Drive 資料夾裡做好的靜圖 + config/simage_copies.json 文案 → ABO 圖片廣告
+# 把 Drive 資料夾的新影片 → 每支重新生成長文案 → ABO 影片 campaign(每組≤2、500 TWD/組/日)
 on:
   workflow_dispatch:
     inputs:
       live:
-        description: "true=真的建廣告並開ACTIVE / false=只列圖↔文案配對"
+        description: "true=真的建廣告並開ACTIVE / false=只列影片排組"
         required: true
         default: "false"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   creative:
     runs-on: ubuntu-latest
+    timeout-minutes: 320
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Build ABO image ads from Drive folder + provided copies
+      - name: Build ABO video ads from Drive folder (fresh copy per video)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
           GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PAGE_ID: ${{ secrets.PAGE_ID }}
           INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
           PIXEL_ID: ${{ secrets.PIXEL_ID }}
           LANDING_URL: ${{ secrets.LANDING_URL }}
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
-          # WK 這批 7 張靜圖的資料夾
+          # WK 這批新影片的資料夾(17 支)
           DRIVE_FOLDER_ID: "1rkKX_2sYQCPAxwIF_wVLHljDNW1wMiCq"
-          # ABO 800 TWD/組;30-55 台灣繁中(locale 22);手動版位;每組≤3
-          IMAGE_ADSET_BUDGET: "800"
+          # ABO 500 TWD/組;每組≤2 支;30-55 台灣繁中(locale 22);手動版位
+          IMAGE_ADSET_BUDGET: "500"
+          VIDEOS_PER_ADSET: "2"
           TW_LOCALE: "22"
           AGE_MIN: "30"
           AGE_MAX: "55"
-          VIDEOS_PER_ADSET: "3"
           ACTIVATE: "true"
           DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
-        run: python launch_drive_static.py
+        run: python launch_drive_video.py
