@@ -20,7 +20,7 @@ PRICE = float(os.environ.get("PRICE_PER_SALE") or 39800)
 
 def all_adsets(account):
     rows = C.fb_retry(account.get_ad_sets,
-                      fields=["id", "name", "effective_status", "daily_budget", "campaign"],
+                      fields=["id", "name", "effective_status", "daily_budget", "campaign{id,name}"],
                       params={"limit": 500})
     out = {}
     for a in rows:
