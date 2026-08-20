@@ -1,17 +1,17 @@
 name: Report CPA (campaign lifetime spend)
 
-# 分支上暫時借用這個(已註冊在 main 的)workflow 來按需跑 weekly_cpa,
-# 正式排程走 weekly-cpa.yml(合併到 main 後每週三自動跑)。
+# 分支上借用這個(已註冊在 main 的)workflow 按需跑 weekly_cpa,
+# 產出「每支素材 花費 vs 買單 vs ROAS」戰報,並把排名印到 log。
 on:
   workflow_dispatch:
     inputs:
-      live:
-        description: "true=真的改 locale+預算 / false=只讀診斷"
-        required: true
-        default: "false"
+      recent_days:
+        description: "近 N 天視窗(近期這幾場),留空=只看 Lifetime"
+        required: false
+        default: "60"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   report:
@@ -22,12 +22,52 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Fix locale + budget on existing ad sets
+      - name: Build CPA report (spend vs buyers vs ROAS)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-          MATCH: "AI獲客 ·"
-          ADSET_BUDGET: "800"
-          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
-        run: python fix_meta.py
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          PRICE_PER_SALE: "39800"
+          RECENT_DAYS: ${{ github.event.inputs.recent_days }}
+        run: |
+          python weekly_cpa.py
+          python - <<'PY'
+          import json, os
+          d = json.load(open(os.path.join("..","reports","cpa_data.json"), encoding="utf-8"))
+          rows = d["lifetime"]
+          tb = d["buyers_total"]; un = d["unattributed"]
+          PRICE = 39800
+          tot_rev = tb * PRICE
+          tot_spend = sum(r["spend"] or 0 for r in rows)
+          attr = sum(r["buyers"] for r in rows)
+          print("CPA_ANALYSIS_START")
+          print(f"總買單={tb}  可歸因={attr}  未歸因={un}  總營收={tot_rev:,.0f}")
+          print(f"可查到花費合計={tot_spend:,.0f}  整體ROAS(可歸因部分)={ (attr*PRICE)/tot_spend if tot_spend else 0:.2f}")
+          print()
+          # ── 按『花費』由高到低：看錢花在哪 ──
+          print("=== 花費由高到低（錢花在哪）===")
+          print(f"{'素材':40s} {'花費':>9s} {'買單':>4s} {'營收':>9s} {'ROAS':>5s} {'CPA':>7s}  判定")
+          for r in sorted(rows, key=lambda x: -(x['spend'] or 0)):
+              nm=(r['name'] or '')[:38]
+              sp=r['spend'] or 0; bz=r['buyers']; rv=r['revenue']
+              roas=r['roas']; cpa=r['cpa']
+              print(f"{nm:40s} {sp:9,.0f} {bz:4d} {rv:9,.0f} {('%.2f'%roas) if roas else '  — ':>5s} {('%.0f'%cpa) if cpa else '   — ':>7s}  {r['verdict']} · {r['why']}")
+          print()
+          # ── 診斷 1：花大錢但不賺（overfunded losers）──
+          losers = [r for r in rows if (r['spend'] or 0) > 0 and r['verdict']=='KILL']
+          losers.sort(key=lambda x:-(x['spend'] or 0))
+          print("=== ⚠️ 花了錢、ROAS 低（該減/關）===")
+          for r in losers[:8]:
+              print(f"  {(r['name'] or '')[:38]:40s} 花費 {r['spend']:,.0f} · 買單 {r['buyers']} · ROAS {('%.2f'%r['roas']) if r['roas'] else '—'}")
+          if not losers: print("  （無）")
+          print()
+          # ── 診斷 2：賺錢但花太少（underfunded winners → 該加預算）──
+          wins = [r for r in rows if r['verdict']=='SCALE']
+          wins.sort(key=lambda x:(x['spend'] or 0))  # 花最少的賺錢廣告排前面 = 最該加碼
+          print("=== 🚀 ROAS 高、卻花很少（之前賺錢沒放大 → 該加預算）===")
+          for r in wins:
+              print(f"  {(r['name'] or '')[:38]:40s} 花費 {r['spend']:,.0f} · 買單 {r['buyers']} · ROAS {r['roas']:.2f} · 營收 {r['revenue']:,.0f}")
+          if not wins: print("  （無 ROAS≥3 的素材）")
+          print("CPA_ANALYSIS_END")
+          PY
