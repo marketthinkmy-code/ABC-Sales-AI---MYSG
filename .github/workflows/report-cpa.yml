@@ -47,7 +47,7 @@ jobs:
               if b.get("creative"):
                   bw[W.norm(b["creative"])] += 1
           # 近 N 天 Meta 每支廣告花費(自訂 time_range)
-          by_ad = W.meta_by_ad(None, time_range={"since": since.isoformat(), "until": today.isoformat()})
+          by_ad, _, _ = W.meta_by_ad(None, time_range={"since": since.isoformat(), "until": today.isoformat()})
           def match_buyers(ad_name):
               n = 0
               for cr, cnt in bw.items():
