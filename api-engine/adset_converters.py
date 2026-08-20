@@ -19,19 +19,24 @@ PRICE = float(os.environ.get("PRICE_PER_SALE") or 39800)
 
 
 def all_adsets(account):
+    # campaign_id → 名稱(用純量欄位 join,避免 nested SDK 物件抓不到名稱)
+    cmap = {}
+    for c in C.fb_retry(account.get_campaigns, fields=["id", "name"], params={"limit": 500}):
+        cmap[c["id"]] = c.get("name", "")
     rows = C.fb_retry(account.get_ad_sets,
-                      fields=["id", "name", "effective_status", "daily_budget", "campaign{id,name}"],
+                      fields=["id", "name", "effective_status", "daily_budget", "campaign_id"],
                       params={"limit": 500})
-    out = {}
+    out, by_name = {}, {}
     for a in rows:
-        camp = a.get("campaign") or {}
-        cname = camp.get("name", "") if isinstance(camp, dict) else ""
-        key = (norm(cname), norm(a.get("name", "")))
-        out[key] = {"id": a["id"], "adset": a.get("name", ""), "camp": cname,
-                    "eff": a.get("effective_status", ""),
-                    "budget": float(a.get("daily_budget", 0) or 0) / C.currency_offset(),
-                    "camp_id": camp.get("id") if isinstance(camp, dict) else None}
-    return out
+        cid = a.get("campaign_id")
+        cname = cmap.get(cid, "")
+        rec = {"id": a["id"], "adset": a.get("name", ""), "camp": cname,
+               "eff": a.get("effective_status", ""),
+               "budget": float(a.get("daily_budget", 0) or 0) / C.currency_offset(),
+               "camp_id": cid}
+        out[(norm(cname), norm(a.get("name", "")))] = rec
+        by_name.setdefault(norm(a.get("name", "")), rec)
+    return out, by_name
 
 
 def spend_by_adset(account):
@@ -47,18 +52,18 @@ def spend_by_adset(account):
     return out
 
 
-def match(pair, amap):
+def match(pair, amap, by_name):
     if pair in amap:
-        return pair
+        return amap[pair]
     ck, ak = pair
-    # 同 campaign 下 ad set 名稱包含匹配
-    for (mc, ma) in amap:
+    for (mc, ma), rec in amap.items():       # 同 campaign 下 ad set 名稱包含匹配
         if mc == ck and ak and ma and (ak in ma or ma in ak):
-            return (mc, ma)
-    # campaign 也放寬
-    for (mc, ma) in amap:
+            return rec
+    for (mc, ma), rec in amap.items():       # campaign 也放寬
         if ck and mc and (ck in mc or mc in ck) and ak and ma and (ak in ma or ma in ak):
-            return (mc, ma)
+            return rec
+    if ak and ak in by_name:                 # 退路:只靠 ad set 名稱對(忽略 campaign)
+        return by_name[ak]
     return None
 
 
@@ -76,19 +81,18 @@ def run():
         if b.get("date") and b["date"] >= since60:
             w60[key] += 1
 
-    amap = all_adsets(account)
+    amap, by_name = all_adsets(account)
     spend = spend_by_adset(account)
 
     rows = []
     for key, lb in life.items():
-        mk = match(key, amap)
-        if not mk:
+        info = match(key, amap, by_name)
+        if not info:
             rows.append({"camp": key[0] or "?", "adset": key[1] or "(無)", "life": lb,
                          "w60": w60.get(key, 0), "eff": "(對不到/已刪?)", "spend": 0,
                          "budget": 0, "id": None, "camp_id": None, "roas": None})
             continue
-        info = amap[mk]
-        sp = spend.get(mk, 0)
+        sp = spend.get((norm(info["camp"]), norm(info["adset"])), 0)
         rows.append({"camp": info["camp"], "adset": info["adset"], "life": lb,
                      "w60": w60.get(key, 0), "eff": info["eff"], "spend": sp,
                      "budget": info["budget"], "id": info["id"], "camp_id": info["camp_id"],
