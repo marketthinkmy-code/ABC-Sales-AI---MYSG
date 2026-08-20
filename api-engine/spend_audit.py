@@ -73,6 +73,7 @@ def read_buyers():
                 return j
         return None
     ci_pay, ci_an = col("付費管道"), col("UTM Ads Name")
+    ci_src, ci_as = col("source"), col("UTM Ads Set")
     # stripe 資料列(用 shift 對齊欄位)
     rows = []
     for row in vals[hidx + 1:]:
@@ -109,7 +110,8 @@ def read_buyers():
             k = best_j + shift
             if 0 <= k < len(row):
                 d = parse_date(row[k])
-        buyers.append({"creative": g(ci_an), "date": d})
+        buyers.append({"creative": g(ci_an), "campaign": g(ci_src),
+                       "adset": g(ci_as), "date": d})
     parsed = sum(1 for b in buyers if b["date"])
     print(f"[audit] 買單 {len(buyers)} 筆 · 日期欄=「{date_col_name}」· 成功讀到日期 {parsed}/{len(buyers)}")
     return buyers
