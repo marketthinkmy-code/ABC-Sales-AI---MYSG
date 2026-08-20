@@ -31,43 +31,69 @@ jobs:
           PRICE_PER_SALE: "39800"
           RECENT_DAYS: ${{ github.event.inputs.recent_days }}
         run: |
-          python weekly_cpa.py
           python - <<'PY'
-          import json, os
-          d = json.load(open(os.path.join("..","reports","cpa_data.json"), encoding="utf-8"))
-          rows = d["lifetime"]
-          tb = d["buyers_total"]; un = d["unattributed"]
-          PRICE = 39800
-          tot_rev = tb * PRICE
-          tot_spend = sum(r["spend"] or 0 for r in rows)
-          attr = sum(r["buyers"] for r in rows)
-          print("CPA_ANALYSIS_START")
-          print(f"總買單={tb}  可歸因={attr}  未歸因={un}  總營收={tot_rev:,.0f}")
-          print(f"可查到花費合計={tot_spend:,.0f}  整體ROAS(可歸因部分)={ (attr*PRICE)/tot_spend if tot_spend else 0:.2f}")
+          import weekly_cpa as W, datetime as dt, os
+          from collections import defaultdict
+          W.C.init_api()
+          N = int(os.environ.get("RECENT_DAYS") or 60)
+          PRICE = W.PRICE
+          today = dt.date.today()
+          since = today - dt.timedelta(days=N)
+          buyers = W.read_buyers()
+          rb = [b for b in buyers if b.get("date") and b["date"] >= since]
+          # 視窗內買單，依素材(UTM ad name)彙總
+          bw = defaultdict(int)
+          for b in rb:
+              if b.get("creative"):
+                  bw[W.norm(b["creative"])] += 1
+          # 近 N 天 Meta 每支廣告花費(自訂 time_range)
+          by_ad = W.meta_by_ad(None, time_range={"since": since.isoformat(), "until": today.isoformat()})
+          def match_buyers(ad_name):
+              n = 0
+              for cr, cnt in bw.items():
+                  if cr and (cr in ad_name or ad_name in cr):
+                      n += cnt
+              return n
+          rows = []
+          for name, d in by_ad.items():
+              sp = d.get("spend") or 0
+              if sp <= 0:
+                  continue
+              bz = match_buyers(name)
+              roas = (bz * PRICE) / sp if sp else None
+              cpa = (sp / bz) if bz else None
+              v = ("SCALE" if roas and roas >= 3 else "KEEP" if roas and roas >= 2.5
+                   else "KILL" if bz else "NO-SALE")
+              rows.append({"name": name, "spend": sp, "buyers": bz, "roas": roas, "cpa": cpa, "verdict": v})
+          tot_spend = sum(r["spend"] for r in rows)
+          win_buyers = len(rb)
+          win_attr = sum(r["buyers"] for r in rows)
+          sp_by_v = defaultdict(float)
+          for r in rows: sp_by_v[r["verdict"]] += r["spend"]
+          print("CPA_RECENT_START")
+          print(f"視窗=近 {N} 天（{since} ~ {today}）")
+          print(f"視窗內買單={win_buyers}  視窗內可查廣告花費合計={tot_spend:,.0f}")
+          bad = sp_by_v.get('KILL',0)+sp_by_v.get('NO-SALE',0)
+          good = sp_by_v.get('SCALE',0)+sp_by_v.get('KEEP',0)
+          print(f"花費分佈： 爛(KILL+無買單)={bad:,.0f} ({bad/tot_spend*100 if tot_spend else 0:.0f}%)  好(SCALE+KEEP)={good:,.0f} ({good/tot_spend*100 if tot_spend else 0:.0f}%)")
           print()
-          # ── 按『花費』由高到低：看錢花在哪 ──
-          print("=== 花費由高到低（錢花在哪）===")
-          print(f"{'素材':40s} {'花費':>9s} {'買單':>4s} {'營收':>9s} {'ROAS':>5s} {'CPA':>7s}  判定")
-          for r in sorted(rows, key=lambda x: -(x['spend'] or 0)):
+          print("=== 近 N 天 · 花費由高到低（錢壓在哪）===")
+          print(f"{'廣告(ad name)':40s} {'花費':>9s} {'買單':>4s} {'ROAS':>6s} {'CPA':>7s}  判定")
+          for r in sorted(rows, key=lambda x: -x['spend']):
               nm=(r['name'] or '')[:38]
-              sp=r['spend'] or 0; bz=r['buyers']; rv=r['revenue']
-              roas=r['roas']; cpa=r['cpa']
-              print(f"{nm:40s} {sp:9,.0f} {bz:4d} {rv:9,.0f} {('%.2f'%roas) if roas else '  — ':>5s} {('%.0f'%cpa) if cpa else '   — ':>7s}  {r['verdict']} · {r['why']}")
+              print(f"{nm:40s} {r['spend']:9,.0f} {r['buyers']:4d} {('%.2f'%r['roas']) if r['roas'] else '    —':>6s} {('%.0f'%r['cpa']) if r['cpa'] else '    —':>7s}  {r['verdict']}")
           print()
-          # ── 診斷 1：花大錢但不賺（overfunded losers）──
-          losers = [r for r in rows if (r['spend'] or 0) > 0 and r['verdict']=='KILL']
-          losers.sort(key=lambda x:-(x['spend'] or 0))
-          print("=== ⚠️ 花了錢、ROAS 低（該減/關）===")
-          for r in losers[:8]:
-              print(f"  {(r['name'] or '')[:38]:40s} 花費 {r['spend']:,.0f} · 買單 {r['buyers']} · ROAS {('%.2f'%r['roas']) if r['roas'] else '—'}")
-          if not losers: print("  （無）")
+          print("=== ⚠️ 近 N 天 花了錢、沒賺（KILL / 完全無買單）===")
+          bads=[r for r in rows if r['verdict'] in ('KILL','NO-SALE')]
+          bads.sort(key=lambda x:-x['spend'])
+          for r in bads[:10]:
+              print(f"  {(r['name'] or '')[:38]:40s} 花費 {r['spend']:,.0f} · 買單 {r['buyers']} · ROAS {('%.2f'%r['roas']) if r['roas'] else '無買單'}")
+          if not bads: print("  （無）")
           print()
-          # ── 診斷 2：賺錢但花太少（underfunded winners → 該加預算）──
-          wins = [r for r in rows if r['verdict']=='SCALE']
-          wins.sort(key=lambda x:(x['spend'] or 0))  # 花最少的賺錢廣告排前面 = 最該加碼
-          print("=== 🚀 ROAS 高、卻花很少（之前賺錢沒放大 → 該加預算）===")
+          print("=== 🚀 近 N 天 ROAS 高、花很少（該加預算）===")
+          wins=[r for r in rows if r['verdict']=='SCALE']; wins.sort(key=lambda x:x['spend'])
           for r in wins:
-              print(f"  {(r['name'] or '')[:38]:40s} 花費 {r['spend']:,.0f} · 買單 {r['buyers']} · ROAS {r['roas']:.2f} · 營收 {r['revenue']:,.0f}")
-          if not wins: print("  （無 ROAS≥3 的素材）")
-          print("CPA_ANALYSIS_END")
+              print(f"  {(r['name'] or '')[:38]:40s} 花費 {r['spend']:,.0f} · 買單 {r['buyers']} · ROAS {r['roas']:.2f}")
+          if not wins: print("  （無 ROAS≥3）")
+          print("CPA_RECENT_END")
           PY

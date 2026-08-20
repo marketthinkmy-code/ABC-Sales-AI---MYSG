@@ -86,12 +86,17 @@ def _is_reg(action_type):
             or a.endswith(".lead") or "registration" in a)
 
 
-def meta_by_ad(preset):
-    """回傳 {正規化 ad_name: {spend, leads}} 與 campaign/adset 彙總。"""
+def meta_by_ad(preset, time_range=None):
+    """回傳 {正規化 ad_name: {spend, leads}} 與 campaign/adset 彙總。
+    preset=Meta date_preset;或給 time_range={'since','until'} 用自訂視窗(近 N 天)。"""
     acct = AdAccount(C.ACT_ID)
     by_ad, by_cp, by_as = {}, {}, {}
-    params = {"level": "ad", "date_preset": preset, "limit": 500,
+    params = {"level": "ad", "limit": 500,
               "fields": ["ad_name", "adset_name", "campaign_name", "spend", "actions"]}
+    if time_range:
+        params["time_range"] = time_range
+    else:
+        params["date_preset"] = preset
     try:
         rows = acct.get_insights(params=params)
     except Exception as e:
