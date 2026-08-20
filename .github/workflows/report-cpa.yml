@@ -30,4 +30,5 @@ jobs:
           GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
           PRICE_PER_SALE: "39800"
           RECENT_DAYS: ${{ github.event.inputs.recent_days }}
-        run: python adset_converters.py
+          DRY_RUN: "true"
+        run: python activate_adsets.py
