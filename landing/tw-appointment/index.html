@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 員工・預約型店家免費分享會|24 小時秒回訊息,自動幫你約滿預約簿</title>
+<meta name="description" content="免費線上分享會:AI 員工 24 小時秒回 LINE/IG/FB 訊息,自動報價、自動帶預約、自動提醒到店。專為美業、診所、健身房等台灣預約型店家設計。">
+<!--
+  台灣版課程報名頁(預約型店家方向)
+  品牌:MTC「AI 自動回覆・幫你獲客」/ AI 員工
+  用途:免費線上分享會報名(對應 futureaiemployee.com 漏斗,台灣在地化改寫)
+
+  ⚠️ 上線前必改:
+  1. FORM_ACTION(最下方 <script>):填你漏斗平台的表單 endpoint,留空 = demo 模式
+  2. EVENT_DATE:下一梯次分享會時間(台北時間)
+  3. 「學員見證」目前為示意文案,依台灣公平交易法,上線前請換成真實客戶授權見證
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  :root{
+    --ink:#0d1522;        /* 深墨藍底 */
+    --ink-2:#131d2e;      /* 區塊底 */
+    --card:#1a2638;       /* 卡片 */
+    --line:#27364d;       /* 邊框 */
+    --text:#f2f5fa;
+    --muted:#9db0c9;
+    --green:#06c755;      /* LINE 綠 = 行動色 */
+    --green-deep:#04a848;
+    --amber:#ffc53d;      /* 急迫/倒數 */
+    --danger:#ff6b6b;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation:none!important;transition:none!important}
+  }
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    font-size:17px;line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:84px; /* sticky CTA 空間 */
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:0 20px}
+  section{padding:72px 0}
+  .eyebrow{
+    display:inline-block;font-size:13px;font-weight:700;letter-spacing:.14em;
+    color:var(--green);border:1px solid var(--green);border-radius:999px;
+    padding:5px 14px;margin-bottom:20px;
+  }
+  h1,h2{font-weight:900;text-wrap:balance;line-height:1.35}
+  h1{font-size:clamp(26px,5vw,42px)}
+  h2{font-size:clamp(22px,4vw,32px);margin-bottom:14px}
+  .sub{color:var(--muted);max-width:640px}
+  .hl{color:var(--green)}
+  .hl-amber{color:var(--amber)}
+
+  /* ---------- CTA ---------- */
+  .btn{
+    display:inline-block;background:var(--green);color:#04140a;
+    font-weight:900;font-size:18px;text-decoration:none;text-align:center;
+    padding:16px 36px;border-radius:14px;border:none;cursor:pointer;
+    box-shadow:0 6px 24px rgba(6,199,85,.35);
+    transition:transform .15s,background .15s;
+  }
+  .btn:hover{background:#1fdd6e;transform:translateY(-2px)}
+  .btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
+    outline:3px solid var(--amber);outline-offset:2px;
+  }
+  .btn-note{font-size:13px;color:var(--muted);margin-top:10px}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:64px 0 56px;background:
+    radial-gradient(900px 420px at 70% -10%,rgba(6,199,85,.14),transparent 65%),var(--ink)}
+  .hero .wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:44px;align-items:center}
+  @media(max-width:820px){.hero .wrap{grid-template-columns:1fr}}
+  .event-strip{display:flex;flex-wrap:wrap;gap:10px;margin:26px 0}
+  .chip{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:8px 14px;font-size:14px;font-weight:700;color:var(--text)}
+  .chip b{color:var(--amber)}
+
+  /* 半夜 LINE 對話演示 */
+  .phone{
+    background:var(--ink-2);border:1px solid var(--line);border-radius:22px;
+    padding:18px 16px 20px;max-width:360px;margin:0 auto;width:100%;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+  }
+  .phone-head{display:flex;justify-content:space-between;align-items:center;
+    font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);
+    border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px}
+  .phone-head .live{color:var(--green)}
+  .msg{max-width:85%;padding:10px 14px;border-radius:14px;font-size:14.5px;
+    line-height:1.6;margin-bottom:10px;opacity:0;animation:pop .4s forwards}
+  .msg .t{display:block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+    color:var(--muted);margin-top:4px}
+  .from-cust{background:#24344e;border-top-left-radius:4px}
+  .from-ai{background:var(--green);color:#03150a;margin-left:auto;border-top-right-radius:4px}
+  .from-ai .t{color:#0b5c2f}
+  .msg:nth-child(2){animation-delay:.3s}
+  .msg:nth-child(3){animation-delay:1.1s}
+  .msg:nth-child(4){animation-delay:1.9s}
+  .msg:nth-child(5){animation-delay:2.7s}
+  .msg:nth-child(6){animation-delay:3.5s}
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .phone-foot{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px}
+
+  /* ---------- 痛點 ---------- */
+  .sec-alt{background:var(--ink-2)}
+  .pain-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:32px}
+  @media(max-width:680px){.pain-grid{grid-template-columns:1fr}}
+  .pain{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--danger);
+    border-radius:12px;padding:20px 22px}
+  .pain h3{font-size:17px;font-weight:700;margin-bottom:6px}
+  .pain p{font-size:15px;color:var(--muted)}
+  .pain .tag{font-size:12px;font-weight:700;color:var(--danger);letter-spacing:.08em}
+
+  /* ---------- 解法 4 步 ---------- */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:32px}
+  @media(max-width:820px){.steps{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 18px}
+  .step .n{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--green);font-weight:700}
+  .step h3{font-size:16.5px;margin:8px 0 6px}
+  .step p{font-size:14px;color:var(--muted)}
+
+  /* ---------- 分享會內容 ---------- */
+  .agenda{margin-top:28px;display:grid;gap:12px}
+  .agenda li{list-style:none;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:18px 22px;display:flex;gap:14px;align-items:flex-start}
+  .agenda .ck{color:var(--green);font-weight:900;font-size:18px;line-height:1.5}
+  .agenda b{display:block}
+  .agenda span{color:var(--muted);font-size:15px}
+
+  /* ---------- 見證 ---------- */
+  .quotes{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:32px}
+  @media(max-width:680px){.quotes{grid-template-columns:1fr}}
+  .quote{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px}
+  .quote p{font-size:15.5px;margin-bottom:14px}
+  .quote .who{font-size:13.5px;color:var(--muted)}
+  .quote .num{display:inline-block;background:rgba(6,199,85,.12);color:var(--green);
+    font-weight:900;font-size:13px;border-radius:8px;padding:3px 10px;margin-bottom:12px}
+  .fineprint{font-size:12px;color:var(--muted);margin-top:16px}
+
+  /* ---------- 適合誰 ---------- */
+  .fit{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px}
+  @media(max-width:680px){.fit{grid-template-columns:1fr}}
+  .fit ul{list-style:none;display:grid;gap:10px}
+  .fit li{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:12px 16px;font-size:15.5px}
+  .fit .yes li{border-left:4px solid var(--green)}
+  .fit .no li{border-left:4px solid var(--line);color:var(--muted)}
+  .fit h3{font-size:16px;margin-bottom:12px;color:var(--muted);letter-spacing:.08em}
+
+  /* ---------- 講師 ---------- */
+  .cred{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px}
+  .cred .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:18px 26px;text-align:center;flex:1;min-width:150px}
+  .cred .kpi b{display:block;font-size:30px;font-weight:900;color:var(--green);
+    font-variant-numeric:tabular-nums}
+  .cred .kpi span{font-size:13.5px;color:var(--muted)}
+
+  /* ---------- FAQ ---------- */
+  details{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:0;margin-bottom:12px;overflow:hidden}
+  summary{cursor:pointer;font-weight:700;padding:18px 22px;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"＋";color:var(--green);font-weight:900;margin-right:10px}
+  details[open] summary::before{content:"－"}
+  details div{padding:0 22px 18px;color:var(--muted);font-size:15.5px}
+
+  /* ---------- 報名表單 ---------- */
+  .signup{background:
+    radial-gradient(700px 360px at 50% 0%,rgba(6,199,85,.16),transparent 70%),var(--ink-2)}
+  .form-card{background:var(--card);border:1px solid var(--green-deep);border-radius:18px;
+    padding:34px 30px;max-width:560px;margin:32px auto 0}
+  .countdown{display:flex;justify-content:center;gap:12px;margin:18px 0 26px}
+  .cd{background:var(--ink);border:1px solid var(--line);border-radius:10px;
+    padding:10px 0;width:76px;text-align:center}
+  .cd b{display:block;font-family:"IBM Plex Mono",monospace;font-size:26px;
+    color:var(--amber);font-variant-numeric:tabular-nums}
+  .cd span{font-size:12px;color:var(--muted)}
+  label{display:block;font-size:14px;font-weight:700;margin:16px 0 6px}
+  input,select{width:100%;background:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:13px 14px;color:var(--text);font-size:16px;
+    font-family:inherit}
+  input::placeholder{color:#5f7188}
+  .form-card .btn{width:100%;margin-top:24px}
+  .seats{font-size:14px;color:var(--amber);font-weight:700;text-align:center;margin-top:14px}
+  .ok-msg{display:none;text-align:center;padding:30px 10px}
+  .ok-msg b{color:var(--green);font-size:20px}
+
+  /* ---------- Sticky CTA ---------- */
+  .sticky{position:fixed;left:0;right:0;bottom:0;z-index:50;
+    background:rgba(13,21,34,.92);backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);padding:12px 16px;
+    display:flex;justify-content:center;align-items:center;gap:16px}
+  .sticky .btn{padding:12px 28px;font-size:16px;box-shadow:none}
+  .sticky span{font-size:14px;color:var(--muted)}
+  @media(max-width:560px){.sticky span{display:none}}
+
+  footer{padding:36px 0 56px;text-align:center;color:#5f7188;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">美業・醫美・牙醫・健身・寵物美容・攝影・民宿|預約型店家老闆請進</span>
+      <h1>客人半夜傳 LINE 問價格,<br>隔天早上你回他──<br><span class="hl-amber">他已經約了別家。</span></h1>
+      <p class="sub" style="margin-top:18px">
+        免費線上分享會,現場示範:<b style="color:var(--text)">AI 員工</b>如何 24 小時秒回
+        LINE / IG / FB 訊息、自動報價、自動帶預約、自動提醒到店──
+        <b class="hl">你在睡覺,它幫你把預約簿填滿。</b>
+      </p>
+      <div class="event-strip">
+        <span class="chip">📅 <b id="event-date-label">本週四晚上 8:00</b>(台北時間)</span>
+        <span class="chip">💻 線上 Zoom 直播</span>
+        <span class="chip">🎫 <b>完全免費</b>・名額 200 位</span>
+      </div>
+      <a class="btn" href="#signup">立即免費報名分享會 →</a>
+      <p class="btn-note">報名後 LINE / Email 會收到上課連結,全程線上參加</p>
+    </div>
+
+    <div class="phone" aria-label="AI 員工半夜自動回覆示範">
+      <div class="phone-head"><span>凌晨 02:14・老闆已睡</span><span class="live">● AI 員工上線中</span></div>
+      <div class="msg from-cust">請問你們美睫嫁接一次多少?這週六下午還有位子嗎?<span class="t">02:14</span></div>
+      <div class="msg from-ai">您好!💚 日式輕羽嫁接 $1,680,首次體驗 $1,280。週六下午目前剩 14:00 和 16:30 兩個時段~<span class="t">02:14・AI 秒回</span></div>
+      <div class="msg from-cust">那 16:30 好了!<span class="t">02:15</span></div>
+      <div class="msg from-ai">已為您保留週六 16:30 ✅ 前一天會再提醒您。期待見到您!<span class="t">02:15・預約完成</span></div>
+      <div class="phone-foot">↑ 這整段對話,老闆全程在睡覺</div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 痛點 ============ -->
+<section class="sec-alt" id="pain">
+  <div class="wrap">
+    <span class="eyebrow">預約型店家的 6 個訊息黑洞</span>
+    <h2>你不是生意不好,<br>你是<span class="hl-amber">預約在訊息裡漏光了</span></h2>
+    <p class="sub">台灣的客人習慣先傳 LINE、IG 小盒子問完才決定。每一則沒回好的訊息,就是一個被隔壁店接走的預約。</p>
+
+    <div class="pain-grid">
+      <div class="pain"><span class="tag">漏接</span>
+        <h3>訊息回慢 3 小時=預約直接飛</h3>
+        <p>客人問「週六還有位子嗎?」的同時,平均也在問另外 3~5 家。誰先回、誰先給時段,客人就約誰。</p></div>
+      <div class="pain"><span class="tag">流失</span>
+        <h3>報完價就已讀不回</h3>
+        <p>你認真回了價格,對方已讀就消失。沒有人手一個一個追蹤,這些「問過價的準客人」全部沉掉。</p></div>
+      <div class="pain"><span class="tag">空窗</span>
+        <h3>營業中根本沒手回訊息</h3>
+        <p>做臉做到一半、看診看到一半、課帶到一半──不可能停下來回 LINE。等你晚上 10 點拿起手機,熱度早就過了。</p></div>
+      <div class="pain"><span class="tag">虧損</span>
+        <h3>放鳥(No-show)一個=空檔直接虧</h3>
+        <p>預約型生意最痛:時段賣掉就沒了。客人忘記來、臨時不來,沒人提醒、沒人補位,那格時間就是純虧。</p></div>
+      <div class="pain"><span class="tag">人事</span>
+        <h3>請小編回訊息,月薪 3 萬起跳</h3>
+        <p>還要教、會回錯價格、做半年就離職。半夜和假日照樣沒人回──你花的是全職的錢,買到 1/3 的覆蓋時間。</p></div>
+      <div class="pain"><span class="tag">燒錢</span>
+        <h3>廣告帶來的詢問,漏回=廣告費丟水裡</h3>
+        <p>你花錢投 FB / IG 廣告,每一則進來的詢問都是用錢買的。回不到、回太慢,等於把廣告預算直接沖馬桶。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 解法 ============ -->
+<section id="solution">
+  <div class="wrap">
+    <span class="eyebrow">解法:給店裡請一位不睡覺的員工</span>
+    <h2>AI 員工的「訊息→預約」4 步流水線</h2>
+    <p class="sub">不是罐頭自動回覆,是會照你店裡的價目、時段、話術去對答的 AI──目標只有一個:把詢問變成預約。</p>
+    <div class="steps">
+      <div class="step"><span class="n">STEP 1</span><h3>秒回</h3><p>LINE / IG / FB 訊息 1 秒內回覆,24 小時、365 天,半夜和國定假日照常上班。</p></div>
+      <div class="step"><span class="n">STEP 2</span><h3>報價+解答</h3><p>照你的價目表與常見問題回答,不會回錯價、不會口氣差,像你最會聊的員工。</p></div>
+      <div class="step"><span class="n">STEP 3</span><h3>帶到預約</h3><p>主動給時段、發預約連結,把「問問而已」推進成「約好時間」,直接寫進你的預約簿。</p></div>
+      <div class="step"><span class="n">STEP 4</span><h3>提醒+追回</h3><p>前一天自動提醒到店,降低放鳥率;已讀不回的客人自動再跟進,把沉掉的名單撈回來。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 分享會內容 ============ -->
+<section class="sec-alt" id="agenda">
+  <div class="wrap">
+    <span class="eyebrow">90 分鐘・免費線上分享會</span>
+    <h2>當天你會看到、學到什麼</h2>
+    <ul class="agenda">
+      <li><span class="ck">✓</span><div><b>現場實況示範:AI 員工即時接客</b><span>不放簡報動畫,直接開一個真的帳號,讓你看 AI 怎麼接詢問、報價、把客人約進時段。</span></div></li>
+      <li><span class="ck">✓</span><div><b>預約型店家的「訊息成交 SOP」</b><span>美業、診所、健身房實際在用的對話流程:第一句怎麼回、什麼時候給價格、怎麼開口要預約。</span></div></li>
+      <li><span class="ck">✓</span><div><b>案例拆解:詢問變預約的完整後台</b><span>翻開真實店家後台,看訊息量、回覆速度、預約轉換率前後對比,數字自己說話。</span></div></li>
+      <li><span class="ck">✓</span><div><b>如何在 7 天內裝進你的店</b><span>不用會寫程式、不用換系統,現有的 LINE 官方帳號 / IG / FB 粉專直接接上。步驟當場給你。</span></div></li>
+    </ul>
+    <div style="text-align:center;margin-top:36px">
+      <a class="btn" href="#signup">免費報名,留一個位子給我 →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 見證 ============ -->
+<!-- ⚠️ 以下為示意見證(示範文案)。依公平交易法,正式上線前請替換為真實客戶授權之見證與數據 -->
+<section id="proof">
+  <div class="wrap">
+    <span class="eyebrow">學員見證</span>
+    <h2>預約型店家用了之後,<br>預約簿發生什麼事</h2>
+    <div class="quotes">
+      <div class="quote"><span class="num">當月預約 +47%</span>
+        <p>「以前晚上 11 點還在回訊息,回到懷疑人生。現在半夜的詢問 AI 自動約好,我早上起來打開預約簿──是滿的。」</p>
+        <div class="who">林小姐|美睫工作室・台中西屯</div></div>
+      <div class="quote"><span class="num">放鳥率 22% → 6%</span>
+        <p>「健身房最怕約了不來。AI 前一天自動提醒、臨時取消馬上放出時段補位,教練的空檔終於不用白白浪費。」</p>
+        <div class="who">阿凱教練|私人健身工作室・高雄左營</div></div>
+      <div class="quote"><span class="num">櫃檯每天省 3 小時</span>
+        <p>「診所櫃檯以前一半時間在回 LINE:初診多少、可不可以約晚上。現在 AI 先接、先約,櫃檯專心顧現場病人就好。」</p>
+        <div class="who">張醫師|牙醫診所・台北中山</div></div>
+      <div class="quote"><span class="num">已讀不回追回 3 成</span>
+        <p>「寵物美容旺季根本回不完。最有感的是 AI 會自動追那些問完價就消失的飼主,一個月默默追回三成,全是本來要流失的單。」</p>
+        <div class="who">Yuki|寵物美容沙龍・台南東區</div></div>
+    </div>
+    <p class="fineprint">* 以上為導入學員回饋之整理示例,實際成效依行業、客單價與導入程度而異。</p>
+  </div>
+</section>
+
+<!-- ============ 適合誰 ============ -->
+<section class="sec-alt" id="fit">
+  <div class="wrap">
+    <span class="eyebrow">先說清楚,免得浪費你 90 分鐘</span>
+    <h2>這場分享會適合誰?</h2>
+    <div class="fit">
+      <div class="yes"><h3>✅ 非常適合你,如果你是</h3><ul>
+        <li>美睫・美甲・美髮・皮膚管理・SPA 等美業店家</li>
+        <li>牙醫・醫美・中醫等需要約診的診所</li>
+        <li>健身教練・瑜伽・自費課程工作室</li>
+        <li>寵物美容・攝影棚・民宿等時段預約型生意</li>
+        <li>每天都有回不完的 LINE / IG 訊息的老闆</li>
+      </ul></div>
+      <div class="no"><h3>❌ 可能不適合,如果你</h3><ul>
+        <li>店裡完全沒有客人透過訊息詢問</li>
+        <li>不做預約、純現場排隊的生意</li>
+        <li>只想聽理論,不打算實際導入工具</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 講師/信任 ============ -->
+<section id="about">
+  <div class="wrap">
+    <span class="eyebrow">為什麼是我們教</span>
+    <h2>已經幫 300+ 間店裝好 AI 員工,<br>現在正式來台灣</h2>
+    <p class="sub">我們是最早把「AI 員工」實際裝進中小企業的團隊之一。從馬來西亞、新加坡的美業、診所、教育業一路實戰,同一套系統、同一套 SOP,現在針對台灣店家的 LINE 使用習慣完整在地化。</p>
+    <div class="cred">
+      <div class="kpi"><b>300+</b><span>企業成功導入</span></div>
+      <div class="kpi"><b>&lt;1 秒</b><span>訊息平均回覆速度</span></div>
+      <div class="kpi"><b>24 hr</b><span>全年無休接客</span></div>
+      <div class="kpi"><b>7 天</b><span>平均導入上線時間</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="sec-alt" id="faq">
+  <div class="wrap">
+    <span class="eyebrow">常見問題</span>
+    <h2>報名前,老闆們最常問的 5 件事</h2>
+    <div style="margin-top:28px">
+      <details><summary>我完全不懂科技、不會寫程式,聽得懂嗎?</summary><div>可以。這場分享會就是講給「開店的老闆」聽的,不講技術名詞,全程用你店裡真實會遇到的對話當例子。會用 LINE 就聽得懂。</div></details>
+      <details><summary>我用的是 LINE 官方帳號,可以接嗎?</summary><div>可以,LINE 官方帳號、IG 小盒子、FB Messenger 都能接,不用換掉你現在的帳號,客人完全無感切換。</div></details>
+      <details><summary>分享會要錢嗎?會不會一直推銷?</summary><div>分享會完全免費。90 分鐘裡絕大部分是示範和 SOP 教學;最後會介紹導入方案給有需要的老闆,不強迫、不糾纏。</div></details>
+      <details><summary>AI 會不會亂回,把我的客人得罪走?</summary><div>AI 只照你給的價目、時段和話術回答,遇到沒把握的問題會自動轉真人接手。當天示範時你可以親眼驗證它的口氣。</div></details>
+      <details><summary>當天沒空,有重播嗎?</summary><div>本梯次以直播為主,現場參加才能跟著示範操作和提問。若真的臨時無法出席,請先報名,我們會通知你下一梯次的時間。</div></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 報名表單 ============ -->
+<section class="signup" id="signup">
+  <div class="wrap" style="text-align:center">
+    <span class="eyebrow">免費報名・名額 200 位</span>
+    <h2>下一梯次開課倒數</h2>
+    <div class="countdown" aria-label="距離開課倒數">
+      <div class="cd"><b id="cd-d">0</b><span>天</span></div>
+      <div class="cd"><b id="cd-h">00</b><span>時</span></div>
+      <div class="cd"><b id="cd-m">00</b><span>分</span></div>
+      <div class="cd"><b id="cd-s">00</b><span>秒</span></div>
+    </div>
+
+    <form class="form-card" id="reg-form" style="text-align:left">
+      <label for="f-name">姓名 / 店名稱呼</label>
+      <input id="f-name" name="name" required placeholder="例:林小姐(某某美睫)">
+      <label for="f-phone">手機號碼(接收上課提醒)</label>
+      <input id="f-phone" name="phone" required inputmode="tel" pattern="09\d{2}-?\d{3}-?\d{3}" placeholder="09xx-xxx-xxx">
+      <label for="f-email">Email(接收 Zoom 連結)</label>
+      <input id="f-email" name="email" type="email" required placeholder="name@example.com">
+      <label for="f-biz">你的行業別</label>
+      <select id="f-biz" name="industry" required>
+        <option value="" selected disabled>請選擇</option>
+        <option>美睫 / 美甲 / 美髮 / 皮膚管理 / SPA</option>
+        <option>牙醫 / 醫美 / 中醫診所</option>
+        <option>健身 / 瑜伽 / 課程工作室</option>
+        <option>寵物美容</option>
+        <option>攝影 / 民宿 / 其他預約型服務</option>
+        <option>其他行業</option>
+      </select>
+      <button class="btn" type="submit">確認報名,鎖定我的名額 →</button>
+      <p class="seats">🔥 本梯次名額僅 200 位,額滿即關閉報名</p>
+      <p class="btn-note" style="text-align:center">報名即同意收到本場分享會之通知訊息,可隨時取消訂閱</p>
+      <div class="ok-msg" id="ok-msg">
+        <b>✅ 報名成功!</b>
+        <p style="margin-top:8px;color:var(--muted)">上課連結已寄出,請留意你的 Email 與手機訊息。<br>建議先把時間寫進行事曆,當天見!</p>
+      </div>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    本頁面由 MTC・AI 自動回覆幫你獲客 提供|台灣地區分享會報名頁<br>
+    本分享會為免費線上教學活動,實際導入成效依各店家狀況而異。
+  </div>
+</footer>
+
+<div class="sticky">
+  <span>📅 <b id="sticky-date">本週四 20:00</b>・線上 Zoom・免費</span>
+  <a class="btn" href="#signup">立即免費報名 →</a>
+</div>
+
+<script>
+  /* ===== 上線前設定 ===== */
+  var FORM_ACTION = "";                    // 你的漏斗表單 endpoint,留空 = demo 模式(只顯示成功訊息)
+  var EVENT_DATE  = "2026-08-27T20:00:00+08:00"; // 下一梯次:台北時間
+
+  /* 開課時間顯示 */
+  (function(){
+    var d = new Date(EVENT_DATE);
+    var wd = ["日","一","二","三","四","五","六"][d.getDay()];
+    var label = (d.getMonth()+1)+"/"+d.getDate()+"(週"+wd+") 晚上 "+d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");
+    document.getElementById("event-date-label").textContent = label;
+    document.getElementById("sticky-date").textContent = label;
+  })();
+
+  /* 倒數 */
+  (function(){
+    var $d=document.getElementById("cd-d"),$h=document.getElementById("cd-h"),
+        $m=document.getElementById("cd-m"),$s=document.getElementById("cd-s");
+    function tick(){
+      var diff = new Date(EVENT_DATE) - new Date();
+      if(diff<0) diff=0;
+      var s=Math.floor(diff/1000);
+      $d.textContent = Math.floor(s/86400);
+      $h.textContent = String(Math.floor(s%86400/3600)).padStart(2,"0");
+      $m.textContent = String(Math.floor(s%3600/60)).padStart(2,"0");
+      $s.textContent = String(s%60).padStart(2,"0");
+    }
+    tick(); setInterval(tick,1000);
+  })();
+
+  /* 表單送出 */
+  document.getElementById("reg-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var form = this;
+    var done = function(){
+      form.querySelectorAll("label,input,select,button,.seats").forEach(function(el){el.style.display="none"});
+      document.getElementById("ok-msg").style.display="block";
+    };
+    if(!FORM_ACTION){ done(); return; }   // demo 模式
+    var data = new FormData(form);
+    fetch(FORM_ACTION,{method:"POST",body:data}).then(done).catch(function(){
+      alert("送出失敗,請再試一次或直接私訊我們的粉專。");
+    });
+  });
+</script>
+</body>
+</html>
