@@ -249,6 +249,8 @@ def run():
     camp = C.fb_retry(account.create_campaign, params={
         "name": cname, "objective": C.OBJECTIVE, "special_ad_categories": [],
         "status": "PAUSED", "is_adset_budget_sharing_enabled": False,
+        # 自動出價(最高數量,不設 bid cap)→ ad set 不必帶 bid amount
+        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
     })["id"]
     print(f"  ✓ ABO campaign {camp}: {cname}（{LS.ADSET_BUDGET:.0f}/組 · PAUSED）")
 
