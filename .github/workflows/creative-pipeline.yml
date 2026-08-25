@@ -9,6 +9,10 @@ on:
         description: "true=真的建(仍PAUSED) / false=只列混搭排組"
         required: true
         default: "false"
+      max_adsets:
+        description: "只建前 N 組(canary 驗證用);留空=全部"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -41,6 +45,7 @@ jobs:
           MIX_WINNING: "M1Video 9,M1Video 1,M1Video 8"
           # ABO 500/組;台灣繁中(22);30-55;手動版位
           IMAGE_ADSET_BUDGET: "500"
+          MAX_ADSETS: ${{ github.event.inputs.max_adsets }}
           TW_LOCALE: "22"
           AGE_MIN: "30"
           AGE_MAX: "55"

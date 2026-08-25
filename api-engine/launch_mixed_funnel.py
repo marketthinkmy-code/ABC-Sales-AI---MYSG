@@ -181,6 +181,29 @@ def pool_winning(account, names):
     return out
 
 
+def make_mix_adset(account, camp, name):
+    """從零建 ABO ad set,建立時就帶【新 pixel + CompleteRegistration】。
+    不用 clone 贏家再改 pixel——Meta 不准改已發布 ad set 的 pixel/event。
+    台灣合規(廣告主聲明)改由 regional_regulated_categories + DSA 參數在建立時帶上。"""
+    params = {
+        "name": name,
+        "campaign_id": camp,
+        "billing_event": "IMPRESSIONS",
+        "optimization_goal": "OFFSITE_CONVERSIONS",
+        "daily_budget": C.to_minor(LS.ADSET_BUDGET),   # ABO:預算在 ad set
+        "promoted_object": {"pixel_id": PIXEL, "custom_event_type": EVENT},
+        "targeting": LS.targeting(),                    # 台灣·30-55·繁中(22)·手動版位
+        "status": "PAUSED",
+    }
+    # 台灣法規:含台灣地區必須聲明 regulated category + 廣告主/付款方。
+    params["regional_regulated_categories"] = ["TAIWAN_UNIVERSAL"]
+    if C.DSA_BENEFICIARY:
+        params["dsa_beneficiary"] = C.DSA_BENEFICIARY
+    if C.DSA_PAYOR:
+        params["dsa_payor"] = C.DSA_PAYOR
+    return C.fb_retry(account.create_ad_set, params=params)["id"]
+
+
 def make_ad(account, adset_id, item, name):
     if item["kind"] == "video":
         return C.fb_retry(VP.create_video_ad, account, adset_id, item["video_id"],
@@ -221,10 +244,6 @@ def run():
         raise SystemExit("素材池不完整,停手（避免建出殘缺 campaign）。")
 
     L.ensure_page_advertiser()
-    winners = C.fb_retry(L.find_winner_ads, account, C.WINNER_AD_KEYWORDS)
-    if not winners:
-        raise SystemExit("找不到合規來源(贏家 ad set)。")
-    src = winners[0]["adset_id"]
     cname = f"{N.campaign_name('Video')} · {SUFFIX}"
     L.delete_existing_campaigns(account, cname)
     camp = C.fb_retry(account.create_campaign, params={
@@ -236,11 +255,8 @@ def run():
     total = sum(len(g) for g in groups)
     n = 0
     for gi, g in enumerate(groups, 1):
-        adset_id = LS.make_abo_adset(account, camp, src, f"組{gi}")
-        # 覆寫 promoted_object → 新 pixel + CompleteRegistration
-        C.fb_retry(AdSet(adset_id).api_update, params={
-            "promoted_object": {"pixel_id": PIXEL, "custom_event_type": EVENT}})
-        print(f"  ── 組{gi} ad set {adset_id}（台灣·30-55·繁中·手動·pixel {PIXEL[-6:]}）")
+        adset_id = make_mix_adset(account, camp, f"{N.adset_name(LS.targeting())} · 組{gi}")
+        print(f"  ── 組{gi} ad set {adset_id}（台灣·30-55·繁中·手動·pixel {PIXEL[-6:]}·CompleteRegistration）")
         for j, item in enumerate(g, 1):
             nm = N.ad_name(item["kind"].upper(), gi * 10 + j,
                            re.sub(r"\s+", "", item.get("title") or item.get("src_name") or "")[:20])
