@@ -37,26 +37,69 @@ MAX_ADSETS = int(os.environ.get("MAX_ADSETS") or 0)   # 0 = 用完全部新影�
 PACE = float(os.environ.get("PACE_SEC") or 3)
 
 
-def _oss_item(creative_json):
-    oss = (creative_json or {}).get("object_story_spec") or {}
-    vd = oss.get("video_data")
-    if vd and vd.get("video_id"):
-        return {"kind": "video", "video_id": vd["video_id"],
-                "msg": vd.get("message") or "", "title": vd.get("title") or ""}
-    ld = oss.get("link_data")
-    if ld and ld.get("image_hash"):
-        return {"kind": "image", "image_hash": ld["image_hash"],
-                "msg": ld.get("message") or "", "title": ld.get("name") or ""}
+CREATIVE_FIELDS = ["object_story_spec", "asset_feed_spec",
+                   "video_id", "image_hash", "image_url",
+                   "effective_object_story_id"]
+
+
+def _oss_item(cj):
+    """從 creative 各種形狀萃出 video_id / image_hash + 文案。
+    支援：object_story_spec.video_data/link_data、asset_feed_spec.videos/images、
+    以及頂層 video_id/image_hash。"""
+    cj = cj or {}
+    oss = cj.get("object_story_spec") or {}
+    vd = oss.get("video_data") or {}
+    ld = oss.get("link_data") or {}
+    afs = cj.get("asset_feed_spec") or {}
+    afs_vids = afs.get("videos") or []
+    afs_imgs = afs.get("images") or []
+
+    # 文案：優先 object_story_spec，其次 asset_feed_spec 的 bodies/titles
+    def _txt(*cands):
+        for c in cands:
+            if c:
+                return c
+        return ""
+    body = _txt(vd.get("message"), ld.get("message"),
+                (afs.get("bodies") or [{}])[0].get("text") if afs.get("bodies") else "")
+    title = _txt(vd.get("title"), ld.get("name"),
+                 (afs.get("titles") or [{}])[0].get("text") if afs.get("titles") else "")
+
+    # video：object_story_spec → asset_feed_spec → 頂層
+    vid = vd.get("video_id") or (afs_vids[0].get("video_id") if afs_vids else None) or cj.get("video_id")
+    if vid:
+        return {"kind": "video", "video_id": str(vid), "msg": body, "title": title}
+    # image：link_data.image_hash → asset_feed_spec.images[].hash → 頂層
+    ih = ld.get("image_hash") or (afs_imgs[0].get("hash") if afs_imgs else None) or cj.get("image_hash")
+    if ih:
+        return {"kind": "image", "image_hash": str(ih), "msg": body, "title": title}
     return None
 
 
-def _creative_of(ad):
+_dbg_dumped = set()
+
+
+def _creative_of(ad, dbg_key=None):
     cr = ad.get("creative") or {}
     cid = cr.get("id") if isinstance(cr, dict) else None
     if not cid:
         return None
-    full = C.fb_retry(AdCreative(cid).api_get, fields=["object_story_spec"])
-    return _oss_item(full)
+    full = C.fb_retry(AdCreative(cid).api_get, fields=CREATIVE_FIELDS)
+    item = _oss_item(full)
+    # 每個池第一支對不到時,印出實際 creative 結構的鍵,方便定位
+    if item is None and dbg_key and dbg_key not in _dbg_dumped:
+        _dbg_dumped.add(dbg_key)
+        try:
+            d = full.export_all_data() if hasattr(full, "export_all_data") else dict(full)
+        except Exception:
+            d = dict(full)
+        oss = d.get("object_story_spec") or {}
+        afs = d.get("asset_feed_spec") or {}
+        print(f"    [dbg {dbg_key}] creative keys={list(d.keys())} | "
+              f"oss keys={list(oss.keys())} | afs keys={list(afs.keys())} | "
+              f"video_id={d.get('video_id')} image_hash={d.get('image_hash')} "
+              f"eff_post={d.get('effective_object_story_id')}")
+    return item
 
 
 def _all_campaigns(account):
@@ -83,7 +126,7 @@ def pool_from_campaign(account, camp_name, camps=None):
                           params={"limit": 200}))
     out, seen, no_cr = [], set(), 0
     for ad in ads:
-        it = _creative_of(ad)
+        it = _creative_of(ad, dbg_key=f"camp:{camp_name[:8]}")
         if not it:
             no_cr += 1
             continue
@@ -107,7 +150,7 @@ def pool_winning(account, names):
         print(f"    （前 10 支廣告名樣本:{[ (a.get('name') or '')[:32] for a in ads[:10] ]}）")
     out, seen = [], set()
     for ad in hits:
-        it = _creative_of(ad)
+        it = _creative_of(ad, dbg_key="winning")
         if it:
             key = it.get("video_id") or it.get("image_hash")
             if key and key not in seen:
