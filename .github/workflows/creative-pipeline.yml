@@ -1,11 +1,12 @@
-name: Creative Pipeline (Drive video -> ABO ad)
+name: Creative Pipeline (預約型 mixed funnel)
 
-# 把 Drive 資料夾的新影片 → 每支重新生成長文案 → ABO 影片 campaign(每組≤2、500 TWD/組/日)
+# 預約型・週三：一條新 ABO campaign,混搭 winning ads + 新影片 + 單圖(每組≤3),
+# 新 pixel + 新 landing,全部 PAUSED 放著(不 activate)。
 on:
   workflow_dispatch:
     inputs:
       live:
-        description: "true=真的建廣告並開ACTIVE / false=只列影片排組"
+        description: "true=真的建(仍PAUSED) / false=只列混搭排組"
         required: true
         default: "false"
 
@@ -22,27 +23,26 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Build ABO video ads from Drive folder (fresh copy per video)
+      - name: Build 預約型 mixed funnel (winning + video + image), staged PAUSED
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PAGE_ID: ${{ secrets.PAGE_ID }}
           INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
-          PIXEL_ID: ${{ secrets.PIXEL_ID }}
-          LANDING_URL: ${{ secrets.LANDING_URL }}
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
-          # WK 這批新影片的資料夾(17 支)
-          DRIVE_FOLDER_ID: "1rkKX_2sYQCPAxwIF_wVLHljDNW1wMiCq"
-          # ABO 500 TWD/組;每組≤2 支;30-55 台灣繁中(locale 22);手動版位
+          # 預約型・週三：新 pixel + 新 landing（覆寫 secret 的 LANDING_URL）
+          MIX_PIXEL_ID: "4901270733433185"
+          MIX_EVENT: "COMPLETE_REGISTRATION"
+          LANDING_URL: "https://futureaiemployee.com/ai-closer-app-register"
+          MIX_VIDEO_CAMPAIGN: "AI獲客 · Video · 8月20號2026"
+          MIX_IMAGE_CAMPAIGN: "AI獲客 · Image · 8月19號2026"
+          MIX_WINNING: "M1Video 9,M1Video 1,M1Video 8"
+          # ABO 500/組;台灣繁中(22);30-55;手動版位
           IMAGE_ADSET_BUDGET: "500"
-          VIDEOS_PER_ADSET: "2"
           TW_LOCALE: "22"
           AGE_MIN: "30"
           AGE_MAX: "55"
-          ACTIVATE: "true"
           DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
-        run: python launch_drive_video.py
+        run: python launch_mixed_funnel.py
