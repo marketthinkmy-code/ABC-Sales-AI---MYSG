@@ -185,16 +185,19 @@ def probe_compliance(account):
     """讀一個現有合規 ad set 的『台灣廣告主/合規』欄位,印出實際結構,
     好把它原樣帶進 from-scratch 的 create_ad_set。"""
     src = C.CLONE_SOURCE_ADSET
-    fields = ["id", "name", "compliance_section", "dsa_beneficiary",
-              "dsa_payor", "regional_regulated_categories"]
-    try:
-        d = C.fb_retry(AdSet(src).api_get, fields=fields)
-        d = d.export_all_data() if hasattr(d, "export_all_data") else dict(d)
-        print(f"  [probe] 來源合規 ad set {src}:")
-        for k in fields:
-            print(f"      {k} = {d.get(k)!r}")
-    except Exception as e:
-        print(f"  [probe] 讀來源 ad set {src} 失敗: {e}")
+    # 逐欄嘗試(有些欄位讀不到會 400,分開讀才不會整包失敗)
+    candidates = ["dsa_beneficiary", "dsa_payor", "regional_regulated_categories",
+                  "promoted_object", "bid_strategy", "optimization_goal",
+                  "billing_event", "is_dynamic_creative"]
+    print(f"  [probe] 來源合規 ad set {src} 逐欄讀:")
+    for f in candidates:
+        try:
+            d = C.fb_retry(AdSet(src).api_get, fields=[f])
+            d = d.export_all_data() if hasattr(d, "export_all_data") else dict(d)
+            print(f"      {f} = {d.get(f)!r}")
+        except Exception as e:
+            msg = str(e).replace("\n", " ")[:120]
+            print(f"      {f} = <讀不到: {msg}>")
 
 
 def make_mix_adset(account, camp, name):
