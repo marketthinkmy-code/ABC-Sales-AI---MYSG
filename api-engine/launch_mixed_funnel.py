@@ -79,9 +79,21 @@ def _oss_item(cj):
 _dbg_dumped = set()
 
 
+def _cid(cr):
+    """creative 欄位可能回 dict 或 SDK 物件,兩種都取得到 id。"""
+    if not cr:
+        return None
+    if isinstance(cr, dict):
+        return cr.get("id")
+    try:
+        return cr["id"]           # AbstractCrudObject 支援 index
+    except Exception:
+        pass
+    return cr.get("id") if hasattr(cr, "get") else getattr(cr, "id", None)
+
+
 def _creative_of(ad, dbg_key=None):
-    cr = ad.get("creative") or {}
-    cid = cr.get("id") if isinstance(cr, dict) else None
+    cid = _cid(ad.get("creative"))
     if not cid:
         return None
     full = C.fb_retry(AdCreative(cid).api_get, fields=CREATIVE_FIELDS)
