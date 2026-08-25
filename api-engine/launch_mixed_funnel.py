@@ -181,22 +181,12 @@ def pool_winning(account, names):
     return out
 
 
-def probe_reg_identity(account):
-    """讀現有合規 ad set 的『台灣受益人/付款人』設定,好原樣帶進 from-scratch。"""
-    src = C.CLONE_SOURCE_ADSET
-    for f in ["regional_regulation_identities", "regional_regulated_categories"]:
-        try:
-            d = C.fb_retry(AdSet(src).api_get, fields=[f])
-            d = d.export_all_data() if hasattr(d, "export_all_data") else dict(d)
-            print(f"  [probe] {src}.{f} = {d.get(f)!r}")
-        except Exception as e:
-            print(f"  [probe] {src}.{f} = <讀不到: {str(e).replace(chr(10),' ')[:100]}>")
-
-
 def make_mix_adset(account, camp, name):
     """從零建 ABO ad set,建立時就帶【新 pixel + CompleteRegistration】。
     不用 clone 贏家再改 pixel——Meta 不准改已發布 ad set 的 pixel/event。
-    台灣合規(廣告主聲明)改由 regional_regulated_categories + DSA 參數在建立時帶上。"""
+    台灣合規:regional_regulated_categories + regional_regulation_identities
+    (受益人/付款人=商家 ID);這組是現有合規 ad set 讀出來的實際值,from-scratch
+    一定要自己帶,否則 Meta 擋『No advertiser information for Taiwan ads』。"""
     params = {
         "name": name,
         "campaign_id": camp,
@@ -207,10 +197,11 @@ def make_mix_adset(account, camp, name):
         "promoted_object": {"pixel_id": PIXEL, "custom_event_type": EVENT},
         "targeting": LS.targeting(),                    # 台灣·30-55·繁中(22)·手動版位
         "status": "PAUSED",
-        # 台灣法規:只帶 regulated category。已驗證的廣告主由帳號/商家層解析,
-        # 不放 dsa_beneficiary/dsa_payor(現有合規 ad set 這兩欄就是 None;
-        # 給自由字串反而觸發『請提供已驗證廣告主』)。
         "regional_regulated_categories": ["TAIWAN_UNIVERSAL"],
+        "regional_regulation_identities": {
+            "taiwan_universal_beneficiary": C.BUSINESS_ID,
+            "taiwan_universal_payer": C.BUSINESS_ID,
+        },
     }
     return C.fb_retry(account.create_ad_set, params=params)["id"]
 
@@ -249,7 +240,6 @@ def run():
         line = " ｜ ".join(f"{x['kind']}:{(x.get('src_name') or x.get('title') or '')[:20]}" for x in g)
         print(f"    組{gi}: {line}")
     if C.DRY_RUN:
-        probe_reg_identity(account)
         print("  （DRY:只讀+排組,未建）")
         return
     if not (win and vids and imgs):
