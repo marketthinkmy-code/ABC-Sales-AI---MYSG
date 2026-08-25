@@ -59,40 +59,60 @@ def _creative_of(ad):
     return _oss_item(full)
 
 
-def pool_from_campaign(account, camp_name):
+def _all_campaigns(account):
+    camps = list(C.fb_retry(account.get_campaigns, fields=["id", "name"],
+                            params={"limit": 500}))
+    print(f"  · 帳號共掃到 {len(camps)} 條 campaign")
+    return camps
+
+
+def pool_from_campaign(account, camp_name, camps=None):
+    camps = camps if camps is not None else _all_campaigns(account)
     cid = None
-    for c in C.fb_retry(account.get_campaigns, fields=["id", "name"], params={"limit": 300}):
+    for c in camps:
         if (c.get("name") or "") == camp_name:
             cid = c["id"]
             break
     if not cid:
-        print(f"  ⚠️ 找不到 campaign「{camp_name}」")
+        # 名稱對不到就印出含關鍵字的候選,方便修正
+        kw = camp_name.split("·")[0].strip()[:4] or camp_name[:4]
+        near = [c.get("name", "") for c in camps if kw and kw in (c.get("name") or "")]
+        print(f"  ⚠️ 找不到 campaign「{camp_name}」;含「{kw}」的有: {near[:8]}")
         return []
+    ads = list(C.fb_retry(Campaign(cid).get_ads, fields=["name", "creative"],
+                          params={"limit": 200}))
+    out, seen, no_cr = [], set(), 0
+    for ad in ads:
+        it = _creative_of(ad)
+        if not it:
+            no_cr += 1
+            continue
+        key = it.get("video_id") or it.get("image_hash")
+        if key and key not in seen:
+            seen.add(key)
+            it["src_name"] = ad.get("name", "")
+            out.append(it)
+    print(f"  · campaign「{camp_name}」→ {len(ads)} 支廣告 / 可用素材 {len(out)}"
+          f"（無 video_id/image_hash 的 {no_cr} 支）")
+    return out
+
+
+def pool_winning(account, names):
+    ads = list(C.fb_retry(account.get_ads,
+                          fields=["name", "creative", "effective_status"],
+                          params={"limit": 1000}))
+    hits = [ad for ad in ads if any(w in (ad.get("name") or "") for w in names)]
+    print(f"  · 帳號共掃到 {len(ads)} 支廣告;名稱含 {names} 的 {len(hits)} 支")
+    if not hits and ads:
+        print(f"    （前 10 支廣告名樣本:{[ (a.get('name') or '')[:32] for a in ads[:10] ]}）")
     out, seen = [], set()
-    for ad in C.fb_retry(Campaign(cid).get_ads, fields=["name", "creative"], params={"limit": 200}):
+    for ad in hits:
         it = _creative_of(ad)
         if it:
             key = it.get("video_id") or it.get("image_hash")
             if key and key not in seen:
                 seen.add(key)
                 it["src_name"] = ad.get("name", "")
-                out.append(it)
-    return out
-
-
-def pool_winning(account, names):
-    out, seen = [], set()
-    ads = C.fb_retry(account.get_ads, fields=["name", "creative", "effective_status"], params={"limit": 1000})
-    for ad in ads:
-        nm = ad.get("name", "")
-        if not any(w in nm for w in names):
-            continue
-        it = _creative_of(ad)
-        if it:
-            key = it.get("video_id") or it.get("image_hash")
-            if key and key not in seen:
-                seen.add(key)
-                it["src_name"] = nm
                 out.append(it)
     return out
 
@@ -108,9 +128,10 @@ def make_ad(account, adset_id, item, name):
 def run():
     C.init_api()
     account = AdAccount(C.ACT_ID)
+    camps = _all_campaigns(account)
     win = pool_winning(account, WINNING)
-    vids = pool_from_campaign(account, VIDEO_CAMP)
-    imgs = pool_from_campaign(account, IMAGE_CAMP)
+    vids = pool_from_campaign(account, VIDEO_CAMP, camps)
+    imgs = pool_from_campaign(account, IMAGE_CAMP, camps)
     print(f"[mix] winning {len(win)} · 新影片 {len(vids)} · 單圖 {len(imgs)} | pixel={PIXEL} event={EVENT} | DRY_RUN={C.DRY_RUN}")
     print(f"      landing = {C.LANDING_URL}")
     if not (win and vids and imgs):
