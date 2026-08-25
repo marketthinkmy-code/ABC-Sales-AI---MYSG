@@ -181,25 +181,6 @@ def pool_winning(account, names):
     return out
 
 
-def probe_compliance(account):
-    """讀一個現有合規 ad set 的『台灣廣告主/合規』欄位,印出實際結構,
-    好把它原樣帶進 from-scratch 的 create_ad_set。"""
-    src = C.CLONE_SOURCE_ADSET
-    # 逐欄嘗試(有些欄位讀不到會 400,分開讀才不會整包失敗)
-    candidates = ["dsa_beneficiary", "dsa_payor", "regional_regulated_categories",
-                  "promoted_object", "bid_strategy", "optimization_goal",
-                  "billing_event", "is_dynamic_creative"]
-    print(f"  [probe] 來源合規 ad set {src} 逐欄讀:")
-    for f in candidates:
-        try:
-            d = C.fb_retry(AdSet(src).api_get, fields=[f])
-            d = d.export_all_data() if hasattr(d, "export_all_data") else dict(d)
-            print(f"      {f} = {d.get(f)!r}")
-        except Exception as e:
-            msg = str(e).replace("\n", " ")[:120]
-            print(f"      {f} = <讀不到: {msg}>")
-
-
 def make_mix_adset(account, camp, name):
     """從零建 ABO ad set,建立時就帶【新 pixel + CompleteRegistration】。
     不用 clone 贏家再改 pixel——Meta 不准改已發布 ad set 的 pixel/event。
@@ -214,13 +195,11 @@ def make_mix_adset(account, camp, name):
         "promoted_object": {"pixel_id": PIXEL, "custom_event_type": EVENT},
         "targeting": LS.targeting(),                    # 台灣·30-55·繁中(22)·手動版位
         "status": "PAUSED",
+        # 台灣法規:只帶 regulated category。已驗證的廣告主由帳號/商家層解析,
+        # 不放 dsa_beneficiary/dsa_payor(現有合規 ad set 這兩欄就是 None;
+        # 給自由字串反而觸發『請提供已驗證廣告主』)。
+        "regional_regulated_categories": ["TAIWAN_UNIVERSAL"],
     }
-    # 台灣法規:含台灣地區必須聲明 regulated category + 廣告主/付款方。
-    params["regional_regulated_categories"] = ["TAIWAN_UNIVERSAL"]
-    if C.DSA_BENEFICIARY:
-        params["dsa_beneficiary"] = C.DSA_BENEFICIARY
-    if C.DSA_PAYOR:
-        params["dsa_payor"] = C.DSA_PAYOR
     return C.fb_retry(account.create_ad_set, params=params)["id"]
 
 
@@ -258,7 +237,6 @@ def run():
         line = " ｜ ".join(f"{x['kind']}:{(x.get('src_name') or x.get('title') or '')[:20]}" for x in g)
         print(f"    組{gi}: {line}")
     if C.DRY_RUN:
-        probe_compliance(account)
         print("  （DRY:只讀+排組,未建）")
         return
     if not (win and vids and imgs):
