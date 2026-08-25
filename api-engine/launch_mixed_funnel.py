@@ -181,6 +181,22 @@ def pool_winning(account, names):
     return out
 
 
+def probe_compliance(account):
+    """讀一個現有合規 ad set 的『台灣廣告主/合規』欄位,印出實際結構,
+    好把它原樣帶進 from-scratch 的 create_ad_set。"""
+    src = C.CLONE_SOURCE_ADSET
+    fields = ["id", "name", "compliance_section", "dsa_beneficiary",
+              "dsa_payor", "regional_regulated_categories"]
+    try:
+        d = C.fb_retry(AdSet(src).api_get, fields=fields)
+        d = d.export_all_data() if hasattr(d, "export_all_data") else dict(d)
+        print(f"  [probe] 來源合規 ad set {src}:")
+        for k in fields:
+            print(f"      {k} = {d.get(k)!r}")
+    except Exception as e:
+        print(f"  [probe] 讀來源 ad set {src} 失敗: {e}")
+
+
 def make_mix_adset(account, camp, name):
     """從零建 ABO ad set,建立時就帶【新 pixel + CompleteRegistration】。
     不用 clone 贏家再改 pixel——Meta 不准改已發布 ad set 的 pixel/event。
@@ -239,6 +255,7 @@ def run():
         line = " ｜ ".join(f"{x['kind']}:{(x.get('src_name') or x.get('title') or '')[:20]}" for x in g)
         print(f"    組{gi}: {line}")
     if C.DRY_RUN:
+        probe_compliance(account)
         print("  （DRY:只讀+排組,未建）")
         return
     if not (win and vids and imgs):
