@@ -152,11 +152,20 @@ def pool_from_campaign(account, camp_name, camps=None):
     return out
 
 
+def _name_matches(nm, needle):
+    """比對廣告名是否含 needle;若 needle 以數字結尾,要求後面不接數字,
+    避免『M1Video 1』誤中 M1Video 10/11/12。"""
+    if needle[-1].isdigit():
+        return re.search(re.escape(needle) + r"(?!\d)", nm) is not None
+    return needle in nm
+
+
 def pool_winning(account, names):
     ads = list(C.fb_retry(account.get_ads,
                           fields=["name", "creative", "effective_status"],
                           params={"limit": 1000}))
-    hits = [ad for ad in ads if any(w in (ad.get("name") or "") for w in names)]
+    hits = [ad for ad in ads
+            if any(_name_matches(ad.get("name") or "", w) for w in names)]
     print(f"  · 帳號共掃到 {len(ads)} 支廣告;名稱含 {names} 的 {len(hits)} 支")
     if not hits and ads:
         print(f"    （前 10 支廣告名樣本:{[ (a.get('name') or '')[:32] for a in ads[:10] ]}）")
