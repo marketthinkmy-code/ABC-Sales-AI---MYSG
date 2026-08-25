@@ -195,7 +195,8 @@ def make_mix_adset(account, camp, name):
         "daily_budget": C.to_minor(LS.ADSET_BUDGET),   # ABO:預算在 ad set
         "bid_strategy": "LOWEST_COST_WITHOUT_CAP",      # 自動出價,不必帶 bid amount
         "promoted_object": {"pixel_id": PIXEL, "custom_event_type": EVENT},
-        "targeting": LS.targeting(),                    # 台灣·30-55·繁中(22)·手動版位
+        # 台灣·30-55·繁中(22)·手動版位;advantage_audience=0=關閉自動擴量,維持精準定向
+        "targeting": {**LS.targeting(), "targeting_automation": {"advantage_audience": 0}},
         "status": "PAUSED",
         "regional_regulated_categories": ["TAIWAN_UNIVERSAL"],
         "regional_regulation_identities": {
