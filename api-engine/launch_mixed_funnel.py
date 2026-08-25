@@ -191,6 +191,7 @@ def make_mix_adset(account, camp, name):
         "billing_event": "IMPRESSIONS",
         "optimization_goal": "OFFSITE_CONVERSIONS",
         "daily_budget": C.to_minor(LS.ADSET_BUDGET),   # ABO:預算在 ad set
+        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",      # 自動出價,不必帶 bid amount
         "promoted_object": {"pixel_id": PIXEL, "custom_event_type": EVENT},
         "targeting": LS.targeting(),                    # 台灣·30-55·繁中(22)·手動版位
         "status": "PAUSED",
@@ -249,8 +250,7 @@ def run():
     camp = C.fb_retry(account.create_campaign, params={
         "name": cname, "objective": C.OBJECTIVE, "special_ad_categories": [],
         "status": "PAUSED", "is_adset_budget_sharing_enabled": False,
-        # 自動出價(最高數量,不設 bid cap)→ ad set 不必帶 bid amount
-        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+        # ABO:預算在 ad set,bid_strategy 也放 ad set(campaign 沒預算不能設)
     })["id"]
     print(f"  ✓ ABO campaign {camp}: {cname}（{LS.ADSET_BUDGET:.0f}/組 · PAUSED）")
 
