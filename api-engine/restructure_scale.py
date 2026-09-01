@@ -54,13 +54,29 @@ def adset_window(aset_id):
 
 
 def broadened_targeting():
-    # 台灣 · 30-55 · 繁中(22) · Advantage 受眾 ON · 自動版位(不帶 publisher_platforms=自動)
+    # 沿用建立時「已被接受」的定向(台灣·30-55·繁中22·手動版位),只把 Advantage 受眾打開。
+    # 不動版位(改自動版位會被 Meta 擋),降低被拒風險。
     return {
         "geo_locations": {"countries": ["TW"]},
         "age_min": 30, "age_max": 55,
         "locales": [22],
+        "publisher_platforms": ["facebook", "instagram"],
+        "facebook_positions": ["feed", "facebook_reels", "story"],
+        "instagram_positions": ["stream", "reels", "story"],
         "targeting_automation": {"advantage_audience": 1},
     }
+
+
+def _err(e):
+    parts = []
+    for m in ("api_error_code", "api_error_subcode", "api_error_message"):
+        try:
+            v = getattr(e, m)()
+            if v:
+                parts.append(f"{m}={v}")
+        except Exception:
+            pass
+    return " · ".join(parts) or str(e).replace("\n", " ")[:200]
 
 
 def lifetime_spend():
@@ -141,14 +157,18 @@ def run():
                 print(f"  ⚠️ 關 組{r['idx']} 失敗: {str(e)[:70]}")
     tgt = broadened_targeting()
     for r in active_survivors:
+        # 1) 配速:設日預算(這是「放大」的本體,先確保它成功)
         try:
-            C.fb_retry(AdSet(r["id"]).api_update, params={
-                "targeting": tgt,
-                "daily_budget": C.to_minor(per),
-            })
-            print(f"  ✓ 放寬+配速 組{r['idx']} → 日預算 {per:.0f}")
+            C.fb_retry(AdSet(r["id"]).api_update, params={"daily_budget": C.to_minor(per)})
+            print(f"  ✓ 配速 組{r['idx']} 日預算→{per:.0f}")
         except Exception as e:
-            print(f"  ⚠️ 組{r['idx']} 更新失敗: {str(e)[:90]}")
+            print(f"  ⚠️ 組{r['idx']} 預算失敗: {_err(e)}")
+        # 2) 放寬:打開 Advantage 受眾(best-effort,失敗不影響預算)
+        try:
+            C.fb_retry(AdSet(r["id"]).api_update, params={"targeting": tgt})
+            print(f"  ✓ 放寬 組{r['idx']} Advantage受眾ON")
+        except Exception as e:
+            print(f"  ⚠️ 組{r['idx']} 放寬失敗: {_err(e)}")
     print(f"→ 完成。存活 {len(active_survivors)} 組 × {per:.0f}/日 ≈ {per*len(active_survivors):.0f} TWD/日,"
           f"配速到 {end}。")
     print("  ⓘ 放寬會讓 ad set 重新進 learning(1-2 天 CPL 可能先波動再穩)。")
