@@ -16,33 +16,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Run video pipeline (Drive video -> ad)
+      - name: Discover winners state + ICP interests (read-only)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PAGE_ID: ${{ secrets.PAGE_ID }}
-          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
-          LANDING_URL: ${{ secrets.LANDING_URL }}
-          OBJECTIVE: ${{ secrets.OBJECTIVE }}
-          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
-          # WK 的 16 支影片放這個資料夾(VIDEOS / 1AUOQes4…)
-          DRIVE_FOLDER_ID: "1AUOQes4dAqM-AXupG4kX_xbIBoMbbwow"
-          # 每個 ad set 最多 3 支 → 16 支切 6 個 ad set
-          VIDEOS_PER_ADSET: "3"
-          DRY_RUN: "false"
-          # 只加「新影片」(用 KB 去重),不動已上的
-          FORCE_REBUILD: "false"
-          # APPEND=true:不刪 campaign,只補 KB 還沒記錄的影片(補上次失敗那幾支)
-          APPEND: "true"
-        run: python video_pipeline.py --round VID1
-      - name: Commit KB
-        run: |
-          git config user.name "claude-bot"
-          git config user.email "noreply@anthropic.com"
-          git add reports/creatives_kb.json || true
-          git commit -m "creatives KB (video) $(date -u +%F)" || echo "no changes"
-          git pull --rebase origin "${{ github.ref_name }}" || true
-          git push || true
+        run: python discover_winners_interests.py
