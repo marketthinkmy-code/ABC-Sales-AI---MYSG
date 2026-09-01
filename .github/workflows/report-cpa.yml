@@ -22,13 +22,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Campaign status vs conversion audit
+      - name: Per-adset audit of the 預約型 campaign (underspend + CPL)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
-          PRICE_PER_SALE: "39800"
-          RECENT_DAYS: ${{ github.event.inputs.recent_days }}
-          DRY_RUN: "true"
-        run: python activate_adsets.py
+          CAMP_ID: "120246810049310658"
+          SINCE: "2026-08-25"
+        run: python campaign_scale_audit.py
