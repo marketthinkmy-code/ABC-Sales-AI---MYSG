@@ -5,45 +5,37 @@ name: Launch Ads (自动上广告)
 on:
   workflow_dispatch:
     inputs:
-      round:
-        description: "本轮标记 (如 R1)"
-        required: true
-        default: "R1"
-      angles:
-        description: "角度 key 逗号分隔 (空=priority 1 的角度)"
-        required: false
-        default: ""
       live:
-        description: "true=真的建广告(PAUSED) / false=只试跑"
+        description: "true=真的建(仍PAUSED) / false=只列排組"
         required: true
         default: "false"
+      adset_budget:
+        description: "每個興趣 ad set 每日預算 TWD"
+        required: false
+        default: "1000"
 
 jobs:
   launch:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Build ABO image campaign from static ad renders
+      - name: Build interest-targeted Winners campaign (8 ad sets, staged PAUSED)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
           PAGE_ID: ${{ secrets.PAGE_ID }}
           INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
-          PIXEL_ID: ${{ secrets.PIXEL_ID }}
-          LANDING_URL: ${{ secrets.LANDING_URL }}
           OBJECTIVE: ${{ secrets.OBJECTIVE }}
-          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
-          # ABO:每個 ad set 每日 800 TWD;30-55 台灣繁中(locale 22);手動版位
-          IMAGE_ADSET_BUDGET: "800"
-          TW_LOCALE: "22"
-          AGE_MIN: "30"
-          AGE_MAX: "55"
-          # 建完自動開 ACTIVE(全部建成才開)
-          ACTIVATE: "true"
+          # 一般/舊 pixel(贏家原本漏斗);每組 1000/日;贏家 M1Video 9/1/8
+          INTEREST_PIXEL: "1338102884859245"
+          INTEREST_EVENT: "COMPLETE_REGISTRATION"
+          INTEREST_ADSET_BUDGET: ${{ github.event.inputs.adset_budget }}
+          WINNER_NAMES: "M1Video 9,M1Video 1,M1Video 8"
           DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
-        run: python launch_static_ads.py
+        run: python launch_interest_winners.py
