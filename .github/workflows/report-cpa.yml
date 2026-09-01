@@ -1,14 +1,22 @@
 name: Report CPA (campaign lifetime spend)
 
-# 分支上借用這個(已註冊在 main 的)workflow 按需跑 weekly_cpa,
-# 產出「每支素材 花費 vs 買單 vs ROAS」戰報,並把排名印到 log。
+# 分支上借用這個(已註冊在 main 的)workflow 跑「預約型 campaign 重構放大」:
+# 關 loser + 放寬存活組(Advantage 受眾+自動版位)+ 把剩餘預算配速到結束日。
 on:
   workflow_dispatch:
     inputs:
-      recent_days:
-        description: "近 N 天視窗(近期這幾場),留空=只看 Lifetime"
+      live:
+        description: "true=真的改 / false=只印計畫(dry)"
+        required: true
+        default: "false"
+      end_date:
+        description: "結束日 YYYY-MM-DD(剩餘天數用);留空=下一個週三"
         required: false
-        default: "60"
+        default: ""
+      target_total_twd:
+        description: "目標總額(TWD);RM10k@7.25=72500"
+        required: false
+        default: "72500"
 
 permissions:
   contents: read
@@ -22,11 +30,14 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Per-adset audit of the 預約型 campaign (underspend + CPL)
+      - name: Restructure + scale the 預約型 campaign
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
           CAMP_ID: "120246810049310658"
           SINCE: "2026-08-25"
-        run: python campaign_scale_audit.py
+          TARGET_TOTAL_TWD: ${{ github.event.inputs.target_total_twd }}
+          END_DATE: ${{ github.event.inputs.end_date }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python restructure_scale.py
