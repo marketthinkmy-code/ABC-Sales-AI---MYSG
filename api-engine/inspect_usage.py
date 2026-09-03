@@ -59,10 +59,25 @@ def inspect(name, vals):
                 print(f"          {c:>4} × {v[:44]}")
 
 
+def dump(name, vals, max_rows=60, max_cols=26):
+    print(f"\n===== 分頁「{name}」原始格 · {len(vals)} 列 =====")
+    for i, row in enumerate(vals[:max_rows]):
+        cells = [c for c in row[:max_cols]]
+        if not any(c.strip() for c in cells):
+            continue
+        line = " | ".join((c[:16] if c else "·") for c in cells).rstrip(" |·").rstrip()
+        if line.strip():
+            print(f"  r{i:>2}: {line}")
+
+
 def run():
     sheets = load()
+    mode = os.environ.get("MODE") or "dump"
     for name, vals in sheets.items():
-        inspect(name, vals)
+        if mode == "inspect":
+            inspect(name, vals)
+        else:
+            dump(name, vals)
 
 
 if __name__ == "__main__":
