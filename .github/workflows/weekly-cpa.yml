@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Build CPA dashboard
+      - name: Buyer source analysis (where did buyers come from)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
@@ -25,11 +25,4 @@ jobs:
           GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
           BUYER_SHEET_ID: ${{ secrets.BUYER_SHEET_ID }}
           PRICE_PER_SALE: ${{ secrets.PRICE_PER_SALE }}
-        run: python weekly_cpa.py
-      - name: Commit report
-        run: |
-          git config user.name "claude-bot"
-          git config user.email "noreply@anthropic.com"
-          git add reports/
-          git commit -m "weekly CPA dashboard $(date -u +%F)" || echo "no changes"
-          git push
+        run: python buyer_source_analysis.py
