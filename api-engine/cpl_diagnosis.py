@@ -54,25 +54,24 @@ def account_trend(account):
 
 def active_campaigns(account):
     camps = C.fb_retry(account.get_campaigns,
-                       fields=["id", "name", "effective_status"], params={"limit": 300})
-    active = [c for c in camps if c.get("effective_status") == "ACTIVE"]
+                       fields=["id", "name", "effective_status"], params={"limit": 500})
     tr = {"date_preset": f"last_{ACTIVE_DAYS}d" if ACTIVE_DAYS in (7, 14, 30) else "last_14d"}
     rows = []
-    for c in active:
+    for c in camps:
         try:
             ins = C.fb_retry(c.get_insights, params=tr,
                              fields=["spend", "impressions", "frequency", "ctr", "cpm", "actions"])
-        except Exception as e:
-            print(f"  ⚠️ {c.get('name','')[:26]}: {str(e)[:50]}")
+        except Exception:
             continue
         if not ins:
-            rows.append({"name": c.get("name", ""), "spend": 0, "lead": 0,
-                         "cpl": None, "cpm": 0, "ctr": 0, "freq": 0})
             continue
         r = ins[0]
         sp = _f(r, "spend")
+        if sp <= 0:                      # 只看視窗內真的有花錢的
+            continue
         lead = _leads(r)
-        rows.append({"name": c.get("name", ""), "spend": sp, "lead": lead,
+        rows.append({"name": c.get("name", ""), "st": c.get("effective_status", ""),
+                     "spend": sp, "lead": lead,
                      "cpl": (sp / lead) if lead else None,
                      "cpm": _f(r, "cpm"), "ctr": _f(r, "ctr"), "freq": _f(r, "frequency")})
     return sorted(rows, key=lambda x: -x["spend"])
@@ -92,16 +91,16 @@ def run():
         print(f"  {w['wk']:>6} {w['spend']:>8.0f} {w['cpm']:>6.0f} {w['ctr']:>5.2f} "
               f"{w['freq']:>5.2f} {w['lead']:>5} {cpl:>6}")
 
-    print(f"\n[B. 目前 ACTIVE campaign · 近 {ACTIVE_DAYS} 天]（花費排序）")
+    print(f"\n[B. 近 {ACTIVE_DAYS} 天有花錢的 campaign]（花費排序 · 抓 CPL 兇手）")
     ac = active_campaigns(account)
-    print(f"  {'花費':>8} {'報名':>5} {'CPL':>6} {'CPM':>6} {'CTR%':>5} {'頻率':>5}  campaign")
-    print("  " + "-" * 92)
+    print(f"  {'花費':>8} {'報名':>5} {'CPL':>6} {'CPM':>6} {'CTR%':>5} {'頻率':>5} {'狀態':<10} campaign")
+    print("  " + "-" * 104)
     tsp = tld = 0.0
     for r in ac:
         cpl = f"{r['cpl']:.0f}" if r["cpl"] else "—"
         tsp += r["spend"]; tld += r["lead"]
         print(f"  {r['spend']:>8.0f} {r['lead']:>5} {cpl:>6} {r['cpm']:>6.0f} "
-              f"{r['ctr']:>5.2f} {r['freq']:>5.2f}  {r['name'][:44]}")
+              f"{r['ctr']:>5.2f} {r['freq']:>5.2f} {r['st']:<10} {r['name'][:40]}")
     print("  " + "-" * 92)
     print(f"  ACTIVE 合計:花費 {tsp:.0f} · 報名 {tld:.0f} · 綜合 CPL "
           f"{(tsp/tld) if tld else 0:.0f} TWD")
