@@ -30,14 +30,12 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Restructure + scale the 預約型 campaign
+      - name: Buyer source analysis (where did buyers come from)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-          CAMP_ID: "120246810049310658"
-          SINCE: "2026-08-25"
-          TARGET_TOTAL_TWD: ${{ github.event.inputs.target_total_twd }}
-          END_DATE: ${{ github.event.inputs.end_date }}
-          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
-        run: python restructure_scale.py
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          BUYER_SHEET_ID: ${{ secrets.BUYER_SHEET_ID }}
+          PRICE_PER_SALE: "39800"
+        run: python buyer_source_analysis.py
