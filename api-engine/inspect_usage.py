@@ -16,56 +16,53 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly",
           "https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 
+def _sci(v):
+    return "" if v is None else str(v).strip()
+
+
 def load():
     info = json.loads(os.environ["GOOGLE_SA_JSON"])
     print("SA client_email(要把表分享給這個帳號才讀得到):", info.get("client_email"))
     creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
-    # 先試 Sheets API(可指定 gid 那個分頁)
-    try:
-        sh = build("sheets", "v4", credentials=creds)
-        meta = sh.spreadsheets().get(spreadsheetId=USAGE_ID).execute()
-        title = None
-        for s in meta.get("sheets", []):
-            p = s.get("properties", {})
-            if GID and str(p.get("sheetId")) == GID:
-                title = p.get("title")
-        if not title:
-            title = meta["sheets"][0]["properties"]["title"]
-        print(f"用 Sheets API 讀分頁:「{title}」")
-        vals = sh.spreadsheets().values().get(
-            spreadsheetId=USAGE_ID, range=title).execute().get("values", [])
-        return vals
-    except Exception as e:
-        print(f"Sheets API 失敗({str(e)[:120]}),改用 Drive CSV 匯出(只會拿到第一個分頁)")
     drive = build("drive", "v3", credentials=creds)
-    raw = drive.files().export(fileId=USAGE_ID, mimeType="text/csv").execute()
-    text = raw.decode("utf-8") if isinstance(raw, bytes) else raw
-    return list(csv.reader(io.StringIO(text)))
+    # 這份是「上傳的 .xlsx」,不是原生 Google Sheet → 直接下載二進位用 openpyxl 讀。
+    import openpyxl
+    data = drive.files().get_media(fileId=USAGE_ID).execute()
+    wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    print(f"分頁清單:{wb.sheetnames}")
+    out = {}
+    for name in wb.sheetnames:
+        ws = wb[name]
+        rows = [[_sci(c) for c in r] for r in ws.iter_rows(values_only=True)]
+        out[name] = rows
+    return out
+
+
+def inspect(name, vals):
+    if not vals:
+        print(f"\n===== 分頁「{name}」:空 =====")
+        return
+    hdr_i = max(range(min(6, len(vals))), key=lambda i: sum(1 for c in vals[i] if c.strip()))
+    hdr = vals[hdr_i]
+    rows = vals[hdr_i + 1:]
+    print(f"\n===== 分頁「{name}」· 共 {len(vals)} 列 · 表頭第 {hdr_i+1} 列 · 資料 {len(rows)} 筆 =====")
+    for j, nm in enumerate(hdr):
+        if not nm.strip():
+            continue
+        col = [r[j].strip() for r in rows if j < len(r) and r[j].strip()]
+        distinct = len(set(col))
+        low = 0 < distinct <= 25
+        note = "  ← 分類欄" if low else ("  (高基數/略過值)" if distinct else "  (空)")
+        print(f"  [{j:>2}] {nm[:28]:<28} 非空 {len(col):>4} · 相異 {distinct:>4}{note}")
+        if low:
+            for v, c in Counter(col).most_common(25):
+                print(f"          {c:>4} × {v[:44]}")
 
 
 def run():
-    vals = load()
-    if not vals:
-        print("⚠️ 讀到 0 列。可能是沒分享給 SA,或分頁空的。")
-        return
-    # 找表頭:第一個「非空欄位數最多」的前幾列
-    hdr_i = max(range(min(5, len(vals))), key=lambda i: sum(1 for c in vals[i] if c.strip()))
-    hdr = vals[hdr_i]
-    rows = vals[hdr_i + 1:]
-    print(f"\n總列數 {len(vals)} · 表頭在第 {hdr_i+1} 列 · 資料 {len(rows)} 筆")
-    print(f"欄位({len(hdr)}):")
-    for j, name in enumerate(hdr):
-        col = [r[j].strip() for r in rows if j < len(r) and r[j].strip()]
-        nonempty = len(col)
-        distinct = len(set(col))
-        tag = ""
-        low = distinct <= 25 and distinct > 0
-        print(f"  [{j:>2}] {name[:26]:<26} 非空 {nonempty:>4} · 相異 {distinct:>4}"
-              + ("  ← 分類欄" if low else ("  (高基數,略過值)" if distinct else "")))
-        if low:
-            dist = Counter(col).most_common(25)
-            for v, c in dist:
-                print(f"          {c:>4} × {v[:40]}")
+    sheets = load()
+    for name, vals in sheets.items():
+        inspect(name, vals)
 
 
 if __name__ == "__main__":
