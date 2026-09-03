@@ -16,9 +16,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Discover winners state + ICP interests (read-only)
+      - name: CPL diagnosis (why is cost per lead high)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-        run: python discover_winners_interests.py
+          TREND_DAYS: "90"
+          ACTIVE_DAYS: "14"
+        run: python cpl_diagnosis.py
