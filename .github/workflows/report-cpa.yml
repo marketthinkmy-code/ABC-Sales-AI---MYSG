@@ -30,12 +30,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Buyer source analysis (where did buyers come from)
+      - name: Inspect the Ad Spend Report sheet structure
         working-directory: api-engine
         env:
-          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
-          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
           GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
-          BUYER_SHEET_ID: ${{ secrets.BUYER_SHEET_ID }}
-          PRICE_PER_SALE: "39800"
-        run: python buyer_source_analysis.py
+          USAGE_SHEET_ID: "1ushrZucjEbqUlvnWpmapnXfMbIQBQEnX"
+          USAGE_GID: "1519646133"
+        run: python inspect_usage.py
