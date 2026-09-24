@@ -13,22 +13,66 @@
 import os, re, json, base64, argparse, tempfile, io
 import config as C
 import launch as L
+import kb as KB
+import naming as N
 from facebook_business.adobjects.adaccount import AdAccount
+from facebook_business.adobjects.adset import AdSet
 
 FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID") or "1mUL6VRHG33kcPSL372ELSrZBB_R7ogN6"
 COPY_MODEL = os.environ.get("COPY_MODEL") or "claude-sonnet-5"
+# FORCE_REBUILD=true:忽略「已上過」去重,重建資料夾裡全部圖(手動重跑/改文案時用)。
+# 排程日更時關掉(false),才能只加真正的新圖,不會每天重上一次。
+FORCE = (os.environ.get("FORCE_REBUILD") or "").strip().lower() == "true"
 
-STYLE = """你是 MTC「AI 自動回覆・幫你獲客」品牌的廣告文案。受眾:台灣中小企業老闆、店家。
-產品:一個 AI 員工,能 24 小時自動回覆客戶訊息(LINE/IG/FB)、自動跟進、把詢問推進到成交。
-Offer/CTA:報名「免費線上分享會」現場示範。語氣:又直又痛、口語、繁體中文。
+STYLE = """你是 MTC「AI 自動回覆・幫你獲客」品牌的頂尖直效文案(Direct-Response)。
+受眾:台灣中小企業老闆——美業、健身、診所、房產、顧問、課程導師、實體店家,靠私訊(LINE/IG/FB)成交。
+產品:一套「AI 收單系統/AI 員工」,24 小時自動回覆、聽得懂語音與台語粵語、處理價格疑慮與「我再想想」、
+自動跟進、排預約、把冷掉的名單重新激活、一步步把對話推進到預約或結帳成交——不是死板的回覆機器人,是會「做銷售」的 AI。
+Offer:一場「免費線上直播課」,現場打開後台拆解 AI 員工怎麼運作、怎麼複製到自己生意。CTA:點下方連結免費報名。
 
-風格參考(照這個調):
-- 「老闆,你下班了,客人的訊息誰在回?AI 員工 24 小時自動回覆…👉 免費線上分享會,現場示範:」/ 標題「你休息,AI 幫你接單」
-- 「半夜、假日還在回 LINE?老闆不該當 24 小時免費客服…👉 免費分享會:」/ 標題「別再當 24 小時免費客服」
-- 「對手已經用 AI 秒回接單,你還在手動打字、漏回訊息?…👉 免費分享會:」/ 標題「對手用 AI 秒回,你呢?」
+★這是我們『已驗證會賺錢』的長文案範本,請照這個長度、結構、語氣、emoji 密度來寫(不要縮短成三行):
 
-看這張廣告圖,寫一則『貼文文案 primary_text』+ 一個『標題 headline』,要跟圖上的主視覺/鉤子呼應。
-primary_text:3~4 短行,最後一行用「👉」帶到免費分享會 CTA。headline:<=18 字,一句話。
+---範本(約 60~70 行)---
+你不是在自動化,
+你是在把客人親手送給你的對手 🙅
+.
+客人問一句「價格多少」,
+機器人丟一張死板的價目表,
+然後呢?客人就消失了。
+.
+高客單的客人,需要的是「被引導、被解除疑慮」🧠
+你只丟一個冷冰冰的價格,他當然只會去跟別人比價!
+.
+你每天忙到沒時間回訊息,一天漏掉 2 個詢問,客單一萬,
+一年就白白燒掉 72 萬 💸
+最可怕的是——你根本不知道自己在燒錢,
+因為那些客人是「安靜地離開」的 😶
+.
+所以別再用「聊天工具」了,你需要的是一套「AI 收單系統」⚙️
+來,看好 👀
+客人傳語音,它聽得懂 🗣️ 客人用台語嫌太貴,它不會當機!
+它會像你最頂尖的超級業務,自動處理猶豫、處理「我再想想」,
+一步步把對話推進到客人點擊預約、直接結帳收單 ⚡
+這不是回覆機器人,這是會「做銷售」的 AI 💰
+.
+它不睡覺、沒情緒、不會忘記跟進,把你 LINE 裡問一半就冷掉的「沉默資產」全部重新激活。
+當你員工下班,你的對手正用這套系統 24 小時把你的潛在客戶搶過去 🌙
+.
+如果你是靠私訊成交的老闆——美業、健身、顧問、課程導師,這套就是為你打造的 🎯
+我準備了一場免費線上直播課 🎙️ 直接打開後台,拆解這套 AI 員工怎麼運作、你如何複製到你的生意。
+📍 客人說太貴——AI 自動處理價格疑慮
+📍 語音、台語、粵語——全部聽得懂
+📍 24 小時自動回覆 + 跟進 + 預約 + 成交
+名額有限,先到先得 🔒
+👇 點擊下方連結,立即免費報名
+把基礎事務交給 AI 員工,你去專注搞更重要的東西 🏃
+---範本結束---
+
+任務:看這張廣告圖,寫一則專屬的長文案 primary_text + 一個標題 headline。
+- primary_text:照範本的長度(約 40~70 行)、結構(痛點鉤子→放大代價→揭露機制「來看好」→這不是機器人是會銷售的AI→社會證明/急迫→免費直播課→📍三個 bullet→👇報名CTA)、語氣與 emoji 密度。
+- 【關鍵】開頭 3~5 行的鉤子,必須緊扣『這張圖上的主視覺/文字/情境』,不要每張都一樣。中後段可沿用範本骨架。
+- 用短句、大量斷行、用「.」當空行分隔,讓版面透氣。繁體中文。
+- headline:<=20 字,一句話,呼應這張圖的鉤子。
 只回 JSON,格式: {"primary_text": "...", "headline": "..."} 不要其他字。"""
 
 
@@ -69,7 +113,7 @@ def write_copy(img_path, media_type):
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     b64 = base64.standard_b64encode(open(img_path, "rb").read()).decode()
     msg = client.messages.create(
-        model=COPY_MODEL, max_tokens=600,
+        model=COPY_MODEL, max_tokens=2500,
         messages=[{"role": "user", "content": [
             {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
             {"type": "text", "text": STYLE},
@@ -118,14 +162,16 @@ def run(round_tag):
     account = AdAccount(C.ACT_ID)
     svc = drive_service()
     imgs = list_images(svc)
-    done = already_uploaded_ids(account)
-    new = [f for f in imgs if f["id"] not in done]
+    kbo = KB.load()
+    # 去重:優先看 KB(乾淨名),再相容舊的 [gd:] 標記
+    done = KB.done_ids(kbo) | already_uploaded_ids(account)
+    new = imgs if FORCE else [f for f in imgs if f["id"] not in done]
+    nums = KB.number_batch(new)          # 依檔名編號,沒有就自動 1..N
     print(f"[creative] 資料夾共 {len(imgs)} 張，已上 {len(imgs)-len(new)}，新圖 {len(new)} | DRY_RUN={C.DRY_RUN}")
     if not new:
         print("  沒有新圖，結束。")
         return
 
-    base = f"{C.load_yaml('launch_template.yaml')['brand']['code']} | IMG | {round_tag}"
     adset_id = None
     if not C.DRY_RUN:
         L.ensure_page_advertiser()
@@ -133,10 +179,11 @@ def run(round_tag):
         if not winners:
             raise SystemExit("找不到合規來源(贏家 ad set),無法建容器。")
         src = winners[0]["adset_id"]
-        L.delete_existing_campaigns(account, base)
-        camp = L.copy_source_campaign(account, base, src)
-        adset_id = L.clone_compliant_adset(account, camp, base, src)
-        print(f"  合規容器建好: campaign→ ad set {adset_id}")
+        camp = L.copy_source_campaign(account, N.campaign_name("Image"), src)
+        adset_id = L.clone_compliant_adset(account, camp, "tmp", src)
+        tgt = AdSet(adset_id).api_get(fields=["targeting"]).get("targeting") or {}
+        AdSet(adset_id).api_update(params={"name": N.adset_name(tgt)})
+        print(f"  合規容器建好: {N.campaign_name('Image')} → ad set {adset_id}")
 
     n = 0
     for f in new:
@@ -150,17 +197,22 @@ def run(round_tag):
             except Exception as e:
                 print(f"  ⚠️ {fname} 下載/寫文案失敗,跳過: {e}")
                 continue
-            print(f"  ── {fname}\n     標題: {hl}\n     文案: {pt[:60]}...")
             if C.DRY_RUN:
+                print(f"\n===== {fname} =====\n[標題] {hl}\n[文案] ({len(pt)} 字 / {len(pt.splitlines())} 行)\n{pt}\n")
                 continue
-            name = f"{base} | {fname[:20]} [gd:{fid}]"
+            print(f"  ── {fname}\n     標題: {hl}\n     文案: {pt[:60]}...")
+            # 乾淨命名:AI獲客 | IMG | #編號 | 痛點標題(去重改記在 KB,不放廣告名)
+            theme = re.sub(r"\s+", "", hl)[:24] or fname[:16]
+            name = N.ad_name("IMG", nums[fid], theme)
             try:
                 ad_id = create_image_ad(account, adset_id, upload_image(account, p), pt, hl, name)
+                KB.record(kbo, fid, "IMG", nums[fid], ad_id, name, fname)
                 n += 1
                 print(f"     ✓ 建好圖片廣告 ad={ad_id}")
             except Exception as e:
                 print(f"     ⚠️ 建廣告失敗,跳過: {e}")
     if not C.DRY_RUN:
+        KB.save(kbo)
         print(f"→ 已上 {n} 張新圖為 PAUSED 圖片廣告。檢查無誤後開 ACTIVE。")
 
 

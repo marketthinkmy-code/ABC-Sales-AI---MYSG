@@ -1,51 +1,83 @@
 # =============================================================
-# 優化規則 (Optimization Rules) — 每日排程引擎讀這個檔
-# 門檻值直接從 Soo Cheng 真實帳號反推校準:
-#   ACTIVE 的 CPL: 29.88 / 31.18 / 32.60 / 34.69 ... (留著、加碼)
-#   PAUSED 的 CPL: 63.09 / 65.05 / 95.93          (被關掉)
-# → kill 線設 60、winner 線設 35，正好卡在他們的分界。
-# 幣別 MYR。跑其他幣別帳號請等比例換算。
+# ABC Sales AI · 台灣 · 投放優化規則（CPA-first / 收單導向）
+# 每日排程引擎讀這個檔。
+#
+# 核心原則（跟舊版最大不同）：
+#   ① 不追「最便宜的 CPL」——便宜的報名＝低意圖 lead。改用「成交(CPA)」判定，
+#      CPL 只當防呆天花板，不當加碼理由。
+#   ② 樣本不足前，ROAS/CPA 都是雜訊——少於 3 單 or 花費沒到 2×目標CPA 之前，
+#      不准 SCALE、也不急著 KILL（修掉「1 單 ROAS 42」被當贏家放大的 bug）。
+#   ③ 現況是「已證實的平庸(大影片) + 未證實的潛力(分行業單圖)」→ 用有紀律的
+#      測試把潛力跑到統計顯著，經費來自砍平庸影片＋壞掉的自動加碼。
+#
+# 客單價 NT$39,800 → ROAS 3 ⇒ CPA ≤ ~13,267；ROAS 2.5 ⇒ CPA ≤ ~15,920。
+# 幣別 TWD。
 # =============================================================
 
+market:
+  currency: "TWD"
+  price_per_sale: 39800
+
 target:
-  cpl_target_myr: 35            # 目標每次報名成本 (Website registration)
-  currency: "MYR"
+  cpa_target: 13000        # ROAS≥3 的每單成本上限 → 低於這個才「值得加碼」
+  cpa_keep_max: 16000      # ROAS≥2.5；介於 13k–16k：保留、不加不減
+  cpl_ceiling: 150         # 報名成本天花板（僅防呆，不獎勵超低 CPL）
 
-# --- 觀察期 (learning) —— 未達門檻前不動作，避免誤殺 --------
-learning:
-  min_spend_before_action_myr: 40   # 花不到這數字不判死 (約 1 個 CPL 的量)
-  min_days: 1
+# --- 顯著性門檻：沒到量之前不靠 ROAS/CPA 動作 ----------------
+significance:
+  min_buyers_for_roas: 3          # 少於 3 單 → 不用 ROAS 判 SCALE/KILL
+  min_spend_for_verdict: 26000    # = 2×目標CPA；花到這還 0 單，才算真的爛
+  learning_min_daily_budget: 500  # 測試 ad set 至少這個日預算，才跑得出量
 
-# --- 🔴 KILL：關掉 loser -----------------------------------
+# --- 🔴 KILL：關掉 loser ------------------------------------
 kill:
-  - name: "花錢零轉換"
-    when: "spend >= 2 * cpl_target_myr AND results == 0"   # 花 70 還 0 報名
+  - name: "花到 2×CPA 還 0 成交"
+    when: "buyers == 0 AND spend >= significance.min_spend_for_verdict"
     action: "PAUSE"
-  - name: "CPL 過高"
-    when: "spend >= min_spend_before_action AND cost_per_result > 60"
-    action: "PAUSE"                                        # 對應 Soo Cheng 60+ 全關
+  - name: "有量但 ROAS 低於保留線"
+    when: "buyers >= significance.min_buyers_for_roas AND roas < 2.5"
+    action: "PAUSE_OR_HALVE"      # 有成交但賠錢 → 高花費先減半觀察，否則關
+  - name: "報名成本爆表且沒成交"
+    when: "spend >= 3000 AND cpl > target.cpl_ceiling AND buyers == 0"
+    action: "PAUSE"
 
-# --- 🟢 SCALE：加碼 winner ---------------------------------
+# --- 🟢 SCALE / 測試放大 ------------------------------------
 scale:
-  - name: "穩定低 CPL 加預算"
-    when: "cost_per_result < 35 AND spend >= 100"
+  - name: "達顯著且 CPA 達標 → 加預算"
+    when: "buyers >= significance.min_buyers_for_roas AND cpa <= target.cpa_target"
     action: "INCREASE_BUDGET"
-    budget_step_pct: 20            # 每次 +20%，一天最多加一次，避免重進 learning
-    max_daily_budget_myr: 320      # 上限對齊 Soo Cheng 最高的 LUXURY 320
-  - name: "極佳 CPL 複製放大"
-    when: "cost_per_result < 25 AND results >= 5"
-    action: "DUPLICATE"            # 複製到新 ad set 吃更多受眾
-    duplicate_budget_myr: 100
+    budget_step_pct: 25
+    cooldown_days: 3              # 加完等 3 天再加，避免重進 learning
+  - name: "潛力單圖(有單但未達顯著) → 給測試預算跑到顯著"
+    when: "buyers >= 1 AND buyers < significance.min_buyers_for_roas AND cpl <= target.cpl_ceiling"
+    action: "FUND_TO_SIGNIFICANCE"
+    target_daily_budget: 800     # 拉到一週內能跑到 3–5 單的量
+    cap_total_test_spend: 20000  # 單支最多燒到這，還沒 3 單就收
 
-# --- ♻️ CREATIVE FEEDBACK：贏家素材回饋做變體 --------------
+# --- ♻️ CREATIVE FEEDBACK：贏家素材做變體 -------------------
 creative_feedback:
-  - name: "連贏 3 天的素材"
-    when: "ad.cost_per_result < 30 for 3 consecutive days"
-    action: "FLAG_FOR_VARIATION"   # 寫進報表，通知用同角度再產變體 (Phase 1)
+  - name: "達顯著且 CPA 達標的素材"
+    when: "buyers >= significance.min_buyers_for_roas AND cpa <= target.cpa_target"
+    action: "FLAG_FOR_VARIATION"   # 通知用同「行業/角度」再產變體
+  - name: "分行業單圖是目前最高成交率來源"
+    note: "補習/醫美/婚禮/家具… 成交率 3–10%，是影片的 10–40 倍；優先做這類變體。"
 
-# --- 保護欄 (guardrails) —— 防手滑 -------------------------
+# --- 🎯 受眾精準度（半自動，需人工/CAPI 配合）---------------
+audience:
+  build_value_lookalike_from_buyers: true          # 用 Stripe 買家做 value-based LAL＝精準池
+  optimize_event: "Purchase"                       # 目標：待 CAPI 接上成交回傳,Scale campaign 改優化 Purchase
+  interim_optimize_event: "CompleteRegistration"   # 過渡期先優化報名,但用上面 CPA 規則把關
+  note: "把成交(Stripe)透過 CAPI/offline event 回傳給 Meta,是讓演算法朝『會買的人』而非『會免費報名的人』的關鍵。"
+
+# --- 🚫 保護欄 (guardrails) --------------------------------
 guardrails:
-  max_pauses_per_run: 10          # 單次最多關 10 支，超過先報警不執行
-  max_budget_increase_per_run_pct: 20
+  never_scale_on_roas_below_min_buyers: true   # 明文禁止「1 單就加碼」= 修掉 WINNERS ROAS3+ 那個 bug
+  kill_now:                                     # 本次體檢已確認、建議立即處理
+    - "AI獲客-自動 | WINNERS ROAS3+ | M1Video 1  (ROAS 0.83, 60天燒 143,888)"
+    - "M1Video 12：Zoom 切片  (320 報名 · 0 成交)"
+  halve_now:
+    - "M1Video 9 / M1Video 1 / M1Video 11 / M1Video 4  (量大但 ROAS<2.5)"
+  max_pauses_per_run: 10
+  max_budget_increase_per_run_pct: 25
   never_touch_status: ["ARCHIVED", "DELETED"]
-  dry_run: true                   # 首次跑設 true 只出建議、不真的改；驗證後改 false
+  dry_run: true                   # 先只出建議、不真的改；驗證後改 false

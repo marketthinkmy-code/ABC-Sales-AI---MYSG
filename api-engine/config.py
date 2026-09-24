@@ -89,6 +89,44 @@ def init_api():
         FacebookAdsApi.init(access_token=ACCESS_TOKEN)
 
 
+# Meta 的零位小數貨幣:金額直接用原數,不 ×100(TWD 屬於這類,500 不可變 50,000)。
+_ZERO_DECIMAL = {"TWD", "JPY", "KRW", "VND", "CLP", "HUF", "ISK", "UGX",
+                 "PYG", "XAF", "XOF", "BIF", "DJF", "GNF", "KMF", "MGA",
+                 "RWF", "VUV", "XPF"}
+
+
+def currency_offset():
+    return 1 if (CURRENCY or "").upper() in _ZERO_DECIMAL else 100
+
+
 def to_minor(amount):
-    """Meta 預算用最小貨幣單位 (TWD 無小數視為整數 * 100 的慣例，SDK 用『分』)。"""
-    return int(round(float(amount) * 100))
+    """Meta 預算用最小貨幣單位。零位小數貨幣(TWD/JPY…)用原數,其餘 ×100。"""
+    return int(round(float(amount) * currency_offset()))
+
+
+def fb_retry(fn, *args, tries=6, base=60, **kwargs):
+    """呼叫 Meta API,遇到帳號速率限制(code 17)或暫時性錯誤就退避重試。
+    base 秒起跳,線性加大(60/120/180…),讓帳號的 rolling 速率窗口排空。"""
+    import time
+    from facebook_business.exceptions import FacebookRequestError
+    RATE_CODES = {17, 4, 32, 613, 80000, 80004}
+    for i in range(tries):
+        try:
+            return fn(*args, **kwargs)
+        except FacebookRequestError as e:
+            code = None
+            transient = False
+            try:
+                code = e.api_error_code()
+            except Exception:
+                pass
+            try:
+                transient = bool(e.api_transient_error())
+            except Exception:
+                pass
+            if (code in RATE_CODES or transient) and i < tries - 1:
+                wait = base * (i + 1)
+                print(f"    (Meta 速率限制 code={code},等 {wait}s 後重試 {i+1}/{tries-1})")
+                time.sleep(wait)
+                continue
+            raise

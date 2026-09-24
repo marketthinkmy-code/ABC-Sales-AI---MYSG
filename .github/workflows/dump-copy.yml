@@ -1,14 +1,10 @@
-name: Discover IDs (Page / Pixel / Video)
+name: Dump Winner Copy (real primary_text length)
 
-# 手動執行。撈出帳號的 PAGE_ID / PIXEL_ID / 影片 ID，方便填 launch 設定。
 on:
   workflow_dispatch: {}
 
-permissions:
-  contents: write
-
 jobs:
-  discover:
+  dump:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,11 +12,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: CPL diagnosis (why is cost per lead high)
+      - name: Run dump
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-          TREND_DAYS: "90"
-          ACTIVE_DAYS: "14"
-        run: python cpl_diagnosis.py
+        run: python dump_copy.py

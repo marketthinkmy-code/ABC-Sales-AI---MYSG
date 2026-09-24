@@ -1,0 +1,52 @@
+name: Interest Test Campaign (新測試 campaign · 興趣定向)
+
+# 手動執行。建一個全新的 ABO campaign,底下每個 ICP 興趣各一支 ad set(單一興趣賽馬),
+# 專門拿來大量測試新廣告。預設空 ad set(等你倒新素材進來);seed_winners=true 才先放贏家對照。
+# 預設 dry run(只印計畫);live=true 才真的建(仍 PAUSED)。
+on:
+  workflow_dispatch:
+    inputs:
+      round:
+        description: "本輪標記 (如 T1)"
+        required: true
+        default: "T1"
+      adset_budget:
+        description: "每支興趣 ad set 日預算 TWD (測試建議 200-300)"
+        required: false
+        default: "300"
+      seed_winners:
+        description: "true=每支 ad set 先放贏家素材當對照 / false=留空 ad set"
+        required: false
+        default: "false"
+      live:
+        description: "true=真的建(PAUSED) / false=只試跑印計畫"
+        required: true
+        default: "false"
+
+jobs:
+  interest-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run interest-test launch
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          INTEREST_PIXEL: ${{ secrets.INTEREST_PIXEL }}
+          INTEREST_EVENT: ${{ secrets.INTEREST_EVENT }}
+          INTEREST_JSON: ${{ secrets.INTEREST_JSON }}
+          INTEREST_ADSET_BUDGET: ${{ github.event.inputs.adset_budget }}
+          SEED_WINNERS: ${{ github.event.inputs.seed_winners }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python launch_interest_test.py --round "${{ github.event.inputs.round }}"

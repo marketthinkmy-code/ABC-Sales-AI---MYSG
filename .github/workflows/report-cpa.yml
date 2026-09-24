@@ -1,7 +1,25 @@
 name: Report CPA (campaign lifetime spend)
 
+# 分支上借用這個(已註冊在 main 的)workflow 跑「預約型 campaign 重構放大」:
+# 關 loser + 放寬存活組(Advantage 受眾+自動版位)+ 把剩餘預算配速到結束日。
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      live:
+        description: "true=真的改 / false=只印計畫(dry)"
+        required: true
+        default: "false"
+      end_date:
+        description: "結束日 YYYY-MM-DD(剩餘天數用);留空=下一個週三"
+        required: false
+        default: ""
+      target_total_twd:
+        description: "目標總額(TWD);RM10k@7.25=72500"
+        required: false
+        default: "72500"
+
+permissions:
+  contents: read
 
 jobs:
   report:
@@ -11,10 +29,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r api-engine/requirements.txt
-      - name: Run report
+      - run: pip install -r api-engine/requirements.txt && pip install openpyxl
+      - name: Inspect the Ad Spend Report sheet structure
         working-directory: api-engine
         env:
-          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
-          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-        run: python report_cpa.py
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          USAGE_SHEET_ID: "1ushrZucjEbqUlvnWpmapnXfMbIQBQEnX"
+          USAGE_GID: "1519646133"
+        run: python inspect_usage.py

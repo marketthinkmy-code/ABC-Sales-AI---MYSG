@@ -1,0 +1,11 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "A · 一整組業務", "x": 0, "y": 0, "w": 1080, "h": 1350 },
+    { "file": "OptionB.dc.html", "title": "B · 不下班的業務", "x": 1200, "y": 0, "w": 1080, "h": 1350 },
+    { "file": "OptionC.dc.html", "title": "C · 半夜照樣成交", "x": 2400, "y": 0, "w": 1080, "h": 1350 }
+  ],
+  "annotations": [
+    { "id": "brief", "x": 0, "y": -150, "w": 720, "text": "ABC Sales AI 靜圖廣告 · 3 個 hook 方向（1080×1350 feed）\n仿競品「我把三個員工裝進了這裡」句式，把部門文件夾換成 AI 自動回覆客人→處理『太貴』→直接約成交的對話截圖。挑一個方向我再細修。" }
+  ],
+  "launch": { "view": "canvas" }
+}

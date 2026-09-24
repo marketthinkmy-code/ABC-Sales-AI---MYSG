@@ -1,14 +1,15 @@
-name: Discover IDs (Page / Pixel / Video)
+name: Weekly CPA Dashboard
 
-# 手動執行。撈出帳號的 PAGE_ID / PIXEL_ID / 影片 ID，方便填 launch 設定。
 on:
   workflow_dispatch: {}
+  schedule:
+    - cron: "0 2 * * 3"   # 每週三 UTC 02:00 = 台北/大馬 10:00
 
 permissions:
   contents: write
 
 jobs:
-  discover:
+  cpa:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,11 +17,12 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: CPL diagnosis (why is cost per lead high)
+      - name: Buyer source analysis (where did buyers come from)
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-          TREND_DAYS: "90"
-          ACTIVE_DAYS: "14"
-        run: python cpl_diagnosis.py
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          BUYER_SHEET_ID: ${{ secrets.BUYER_SHEET_ID }}
+          PRICE_PER_SALE: ${{ secrets.PRICE_PER_SALE }}
+        run: python buyer_source_analysis.py

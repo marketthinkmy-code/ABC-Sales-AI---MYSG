@@ -23,6 +23,8 @@ jobs:
           META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          OPTIMIZE_WINDOW_DAYS: "30"
           PAGE_ID: ${{ secrets.PAGE_ID }}
           PIXEL_ID: ${{ secrets.PIXEL_ID }}
           LANDING_URL: ${{ secrets.LANDING_URL }}
@@ -33,6 +35,6 @@ jobs:
           SCALE_CPL: ${{ secrets.SCALE_CPL }}
           MAX_DAILY_BUDGET: ${{ secrets.MAX_DAILY_BUDGET }}
           MIN_SPEND_BEFORE_ACTION: ${{ secrets.MIN_SPEND_BEFORE_ACTION }}
-          # 首次先設 true 空跑。確認無誤後把這個 Secret 改成 false。
-          DRY_RUN: ${{ secrets.DRY_RUN }}
+          # CPA-first 首版：強制 dry-run 空跑驗證。確認無誤後改回 ${{ secrets.DRY_RUN }} 或設 "false" 上線。
+          DRY_RUN: "true"
         run: python optimize.py

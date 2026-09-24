@@ -1,38 +1,53 @@
-name: Creative Pipeline (Drive image -> ad)
+name: Creative Pipeline (預約型 mixed funnel)
 
-# 掃 Drive 資料夾的新圖 → AI 寫文案 → 建圖片廣告(PAUSED)
+# 預約型・週三：一條新 ABO campaign,混搭 winning ads + 新影片 + 單圖(每組≤3),
+# 新 pixel + 新 landing,全部 PAUSED 放著(不 activate)。
 on:
   workflow_dispatch:
     inputs:
-      round:
-        description: "本輪標記 (如 IMG1)"
-        required: true
-        default: "IMG1"
       live:
-        description: "true=真的建廣告(PAUSED) / false=只試跑列新圖+文案"
+        description: "true=真的建(仍PAUSED) / false=只列混搭排組"
         required: true
         default: "false"
-  schedule:
-    - cron: "0 2 * * *"   # 每天 UTC 02:00 = 台北 10:00 掃一次
+      max_adsets:
+        description: "只建前 N 組(canary 驗證用);留空=全部"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
 
 jobs:
   creative:
     runs-on: ubuntu-latest
+    timeout-minutes: 320
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r api-engine/requirements.txt
-      - name: Run creative pipeline
+      - name: Build 預約型 mixed funnel (winning + video + image), staged PAUSED
         working-directory: api-engine
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
-          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
-          LANDING_URL: ${{ secrets.LANDING_URL }}
-          # 排程自動跑時要真的建；手動時看 live 輸入
-          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || (github.event.inputs.live == 'true' && 'false' || 'true') }}
-        run: python creative_pipeline.py --round "${{ github.event.inputs.round || 'AUTO' }}"
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          # 預約型・週三：新 pixel + 新 landing（覆寫 secret 的 LANDING_URL）
+          MIX_PIXEL_ID: "4901270733433185"
+          MIX_EVENT: "COMPLETE_REGISTRATION"
+          LANDING_URL: "https://futureaiemployee.com/ai-closer-app-register"
+          MIX_VIDEO_CAMPAIGN: "AI獲客 · Video · 8月20號2026"
+          MIX_IMAGE_CAMPAIGN: "AI獲客 · Image · 8月19號2026"
+          MIX_WINNING: "M1Video 9,M1Video 1,M1Video 8"
+          # ABO 500/組;台灣繁中(22);30-55;手動版位
+          IMAGE_ADSET_BUDGET: "500"
+          MAX_ADSETS: ${{ github.event.inputs.max_adsets }}
+          TW_LOCALE: "22"
+          AGE_MIN: "30"
+          AGE_MAX: "55"
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python launch_mixed_funnel.py
