@@ -1,0 +1,49 @@
+name: Fill Interest Ads (把 16 支 hook 影片塞進興趣 ad set)
+
+# 手動執行。把 config/video_ads_16.json 的影片平均分散塞進「興趣測試」campaign 的 ad set。
+# 預設 dry run(只印分配);live=true 才真的塞(廣告仍 PAUSED,除非 activate=true)。
+on:
+  workflow_dispatch:
+    inputs:
+      campaign_id:
+        description: "目標 campaign id (空=興趣測試 T1)"
+        required: false
+        default: ""
+      per_adset:
+        description: "每支 ad set 放幾支影片"
+        required: false
+        default: "2"
+      activate:
+        description: "true=塞完直接開 ACTIVE / false=留 PAUSED"
+        required: false
+        default: "false"
+      live:
+        description: "true=真的塞(PAUSED) / false=只試跑印分配"
+        required: true
+        default: "false"
+
+jobs:
+  fill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run fill-interest-ads
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          FILL_CAMPAIGN_ID: ${{ github.event.inputs.campaign_id }}
+          PER_ADSET: ${{ github.event.inputs.per_adset }}
+          ACTIVATE: ${{ github.event.inputs.activate }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python fill_interest_ads.py
