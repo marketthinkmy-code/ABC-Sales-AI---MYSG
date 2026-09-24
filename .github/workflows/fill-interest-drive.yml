@@ -1,0 +1,62 @@
+name: Fill Interest Ads from Drive (從 hook 資料夾上真影片)
+
+# 手動執行。掃 Drive「hook」資料夾 → 上傳 Meta → 塞進「興趣測試」campaign 的 ad set。
+# 預設 dry run(只列資料夾+排組);live=true 才真的產文案、上傳、建廣告(仍 PAUSED)。
+on:
+  workflow_dispatch:
+    inputs:
+      drive_folder_id:
+        description: "Drive 資料夾 id (空=hook 資料夾)"
+        required: false
+        default: ""
+      campaign_id:
+        description: "目標 campaign id (空=興趣測試 T1)"
+        required: false
+        default: ""
+      dist_mode:
+        description: "each=每支ad set放全部 / spread=分散"
+        required: false
+        default: "each"
+      replace:
+        description: "true=先清掉ad set現有廣告再換 / false=疊加"
+        required: false
+        default: "true"
+      activate:
+        description: "true=塞完開ACTIVE / false=留PAUSED"
+        required: false
+        default: "false"
+      live:
+        description: "true=真的上傳建廣告(PAUSED) / false=只試跑列資料夾"
+        required: true
+        default: "false"
+
+jobs:
+  fill-drive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run fill-interest-drive
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COPY_MODEL: ${{ secrets.COPY_MODEL }}
+          DRIVE_FOLDER_ID: ${{ github.event.inputs.drive_folder_id }}
+          FILL_CAMPAIGN_ID: ${{ github.event.inputs.campaign_id }}
+          DIST_MODE: ${{ github.event.inputs.dist_mode }}
+          REPLACE: ${{ github.event.inputs.replace }}
+          ACTIVATE: ${{ github.event.inputs.activate }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python fill_interest_drive.py
