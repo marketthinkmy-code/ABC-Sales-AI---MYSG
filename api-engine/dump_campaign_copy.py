@@ -44,7 +44,12 @@ def run():
             fields=["name", "creative"], params={"limit": 50})))
         for ad in ads:
             cr = ad.get("creative") or {}
-            cid = cr.get("id") if isinstance(cr, dict) else None
+            cid = None
+            if cr:
+                try:
+                    cid = cr["id"]                      # dict 或 SDK 物件都支援 ["id"]
+                except Exception:
+                    cid = cr.get("id") if hasattr(cr, "get") else None
             body, title = ("", "")
             if cid:
                 try:
