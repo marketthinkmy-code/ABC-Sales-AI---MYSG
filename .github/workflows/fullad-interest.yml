@@ -1,0 +1,40 @@
+name: Full-ad Interest Campaign (6 支完整片 · 各一興趣)
+
+# 手動執行。開新 ABO campaign,6 支完整片各配一個單一興趣 ad set(影片從 ABC TW 根目錄上傳)。
+# 預設 dry run;live=true 才真的上傳建廣告(仍 PAUSED)。
+on:
+  workflow_dispatch:
+    inputs:
+      adset_budget:
+        description: "每支 ad set 日預算 TWD"
+        required: false
+        default: "300"
+      live:
+        description: "true=真的上傳建廣告(PAUSED) / false=只試跑"
+        required: true
+        default: "false"
+
+jobs:
+  fullad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run fullad-interest
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          INTEREST_ADSET_BUDGET: ${{ github.event.inputs.adset_budget }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python launch_fullad_interest.py
