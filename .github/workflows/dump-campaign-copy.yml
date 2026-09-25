@@ -1,0 +1,26 @@
+name: Dump Campaign Copy (dump 廣告文案)
+
+on:
+  workflow_dispatch:
+    inputs:
+      campaign_id:
+        description: "campaign id (空=興趣測試 T1)"
+        required: false
+        default: ""
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run dump-campaign-copy
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          DUMP_CAMPAIGN_ID: ${{ github.event.inputs.campaign_id }}
+        run: python dump_campaign_copy.py
