@@ -34,6 +34,7 @@ jobs:
           CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           COPY_MODEL: ${{ secrets.COPY_MODEL }}
+          INTEREST_ADSET_BUDGET: "300"
           FIX_DELETE_ADS: ${{ github.event.inputs.delete_ads }}
           DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
         run: python fix_hooks.py
