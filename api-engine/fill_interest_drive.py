@@ -17,7 +17,7 @@ env: DRIVE_FOLDER_ID(預設 hook 資料夾), GOOGLE_SA_JSON, ANTHROPIC_API_KEY, 
      DIST_MODE(each/spread,預設 each), REPLACE(預設 true), ACTIVATE(預設 false), DRY_RUN(預設 true)
 用法: DRY_RUN=false python fill_interest_drive.py
 """
-import os, re, time, tempfile
+import os, re, json, time, tempfile
 import config as C
 import naming as N
 import video_pipeline as VP
@@ -26,6 +26,25 @@ from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
+
+# 檔名 → 真實 hook 台詞的對應(config/hook_map.json)。讓文案開頭對得上影片的 hook。
+_GUARD = ("（文案守則:不 overpromise——講「把漏掉的接回來／多接住幾單」,"
+          "不要保證成交、不要說一單不漏。全繁體中文。）")
+
+
+def _hook_map():
+    try:
+        return json.load(open(os.path.join(C.ROOT, "config", "hook_map.json"), encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _copy_hint(hmap, fname):
+    """回傳 (餵給 write_copy 的鉤子字串, 命名用 theme)。查不到就用檔名。"""
+    m = hmap.get(fname)
+    if m:
+        return m["hook"] + _GUARD, m.get("theme") or fname
+    return fname, fname
 
 # 覆寫 VP 的資料夾為你的「hook」資料夾(env 沒設就用這個)。
 HOOK_FOLDER = os.environ.get("DRIVE_FOLDER_ID") or "1iQvsvtI_H78v66r8dngorRSSpQQ72uZx"
@@ -82,11 +101,13 @@ def run():
         return
 
     # 1) 每支影片上傳一次,拿 video_id + 縮圖 + 文案
+    hmap = _hook_map()
     assets = []
     for i, f in enumerate(vids, 1):
         fid, fname = f["id"], f["name"]
+        hint, theme = _copy_hint(hmap, fname)
         try:
-            pt, hl = VP.write_copy(fname)
+            pt, hl = VP.write_copy(hint)
         except Exception as e:
             print(f"  ⚠️ {fname} 產文案失敗,跳過: {e}")
             continue
@@ -99,7 +120,7 @@ def run():
                 if not VP.wait_ready(vid):
                     print("    ⚠️ 影片處理逾時,先跳過(稍後可重跑)")
                     continue
-                assets.append({"num": i, "fname": fname, "video_id": vid,
+                assets.append({"num": i, "fname": fname, "theme": theme, "video_id": vid,
                                "thumb": VP.thumbnail(vid), "pt": pt, "hl": hl})
             except Exception as e:
                 print(f"    ⚠️ {fname} 上傳失敗,跳過: {e}")
@@ -119,7 +140,7 @@ def run():
     for i, a in enumerate(adsets):
         mine = assets if DIST_MODE == "each" else [x for j, x in enumerate(assets) if j % len(adsets) == i]
         for x in mine:
-            theme = re.sub(r"\s+", "", x["hl"])[:24] or x["fname"][:16]
+            theme = x.get("theme") or re.sub(r"\s+", "", x["hl"])[:24] or x["fname"][:16]
             name = N.ad_name("VID", x["num"], theme)
             try:
                 ad_id = C.fb_retry(VP.create_video_ad, account, a["id"], x["video_id"],
