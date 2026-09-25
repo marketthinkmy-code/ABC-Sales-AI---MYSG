@@ -1,0 +1,39 @@
+name: Update Hook Copy (換短句版文案)
+
+# 手動執行。把興趣測試 campaign 8 支 hook 廣告的文案換成短句版(hook_copy_v2.json)。
+# 影片/版位/預算/PAUSED 不動,只換 creative。預設 dry run;live=true 才真的換。
+on:
+  workflow_dispatch:
+    inputs:
+      campaign_id:
+        description: "campaign id (空=興趣測試 T1)"
+        required: false
+        default: ""
+      live:
+        description: "true=真的換文案 / false=只試跑"
+        required: true
+        default: "false"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run update-hook-copy
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          UPDATE_CAMPAIGN_ID: ${{ github.event.inputs.campaign_id }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python update_hook_copy.py
