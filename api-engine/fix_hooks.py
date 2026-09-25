@@ -13,6 +13,7 @@ import os, re, json, time
 import config as C
 import naming as N
 import video_pipeline as VP
+import launch_interest_winners as W
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
@@ -20,10 +21,11 @@ from facebook_business.adobjects.adaccount import AdAccount
 
 CAMP_ID = os.environ.get("FILL_CAMPAIGN_ID") or "120247254989860658"
 DELETE_ADS = [s.strip() for s in (os.environ.get("FIX_DELETE_ADS") or "").split(",") if s.strip()]
-# 預設補位:社群行銷 ← Hook⑧(8.mp4),用該次已上傳的 video_id。
-# 直接指定 adset_id(社群行銷 120247254994310658),因為 campaign.get_ad_sets 一直漏讀這支。
+# 原本的 社群行銷 ad set(120247254994310658)已被『封存(archived)』,無法再放廣告、也會被 get_ad_sets 漏讀。
+# 預設:另建一支全新的 社群行銷 興趣 ad set(同興趣 6003389760112),再放 Hook⑧(用已上傳的 video_id)。
 ADD = json.loads(os.environ.get("FIX_ADD") or
-                 '[{"adset_id":"120247254994310658","file":"8.mp4","video_id":"1591571939123690"}]')
+                 '[{"create_interest_id":"6003389760112","label":"社群行銷",'
+                 '"file":"8.mp4","video_id":"1591571939123690"}]')
 
 
 def _hook_map():
@@ -47,7 +49,10 @@ def run():
     for a in adsets:
         print(f"    - {a.get('name','')}  ({a['id']})")
     for spec in ADD:
-        if spec.get("adset_id"):
+        if spec.get("create_interest_id"):
+            print(f"    補:{spec['file']} → 新建興趣 ad set「{spec.get('label')}」"
+                  f"(興趣 {spec['create_interest_id']})")
+        elif spec.get("adset_id"):
             print(f"    補:{spec['file']} → 直接指定 ad set {spec['adset_id']}")
         else:
             m = [a for a in adsets if spec["adset_match"] in (a.get("name") or "")]
@@ -55,6 +60,8 @@ def run():
     if C.DRY_RUN:
         print("  (DRY:未動。DRY_RUN=false 才真的改。)")
         return
+
+    C.fb_retry(W.L.ensure_page_advertiser)
 
     for aid in DELETE_ADS:
         try:
@@ -64,20 +71,31 @@ def run():
             print(f"  ⚠️ 刪 {aid} 失敗: {e}")
 
     for spec in ADD:
-        if spec.get("adset_id"):
-            a = {"id": spec["adset_id"], "name": spec["adset_id"]}
-        else:
-            targets = [x for x in adsets if spec["adset_match"] in (x.get("name") or "")]
-            if not targets:
-                print(f"  ⚠️ 找不到 ad set 含「{spec['adset_match']}」,跳過")
-                continue
-            a = targets[0]
-        # 先清掉這支 ad set 現有廣告(把舊 repo 影片換掉)
-        for ad in C.fb_retry(lambda: list(AdSet(a["id"]).get_ads(fields=["id"], params={"limit": 200}))):
+        if spec.get("create_interest_id"):
             try:
-                Ad(ad["id"]).api_delete()
-            except Exception:
-                pass
+                new_id = W.make_interest_adset(account, CAMP_ID,
+                                               f"興趣 · {spec.get('label','')}",
+                                               [spec["create_interest_id"]])
+                a = {"id": new_id, "name": f"興趣 · {spec.get('label','')}(新)"}
+                print(f"  ✓ 新建 ad set {new_id}(興趣 {spec['create_interest_id']})")
+            except Exception as e:
+                print(f"  ⚠️ 新建 ad set 失敗: {str(e).replace(chr(10),' ')[:160]}")
+                continue
+        else:
+            if spec.get("adset_id"):
+                a = {"id": spec["adset_id"], "name": spec["adset_id"]}
+            else:
+                targets = [x for x in adsets if spec["adset_match"] in (x.get("name") or "")]
+                if not targets:
+                    print(f"  ⚠️ 找不到 ad set 含「{spec['adset_match']}」,跳過")
+                    continue
+                a = targets[0]
+            # 先清掉這支 ad set 現有廣告(把舊 repo 影片換掉)
+            for ad in C.fb_retry(lambda: list(AdSet(a["id"]).get_ads(fields=["id"], params={"limit": 200}))):
+                try:
+                    Ad(ad["id"]).api_delete()
+                except Exception:
+                    pass
         meta = hmap.get(spec["file"], {})
         hint = (meta.get("hook", spec["file"]) + guard)
         theme = meta.get("theme") or spec["file"]
