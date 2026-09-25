@@ -1,0 +1,27 @@
+name: List Drive Tree (掃 Drive 資料夾結構)
+
+on:
+  workflow_dispatch:
+    inputs:
+      drive_folder_id:
+        description: "資料夾 id (空=ABC TW 總資料夾)"
+        required: false
+        default: ""
+
+jobs:
+  tree:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run list-drive-tree
+        working-directory: api-engine
+        env:
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          DRIVE_FOLDER_ID: ${{ github.event.inputs.drive_folder_id }}
+        run: python list_drive_tree.py
