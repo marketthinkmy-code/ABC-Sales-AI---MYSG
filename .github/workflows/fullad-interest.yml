@@ -21,6 +21,10 @@ on:
         description: "先刪掉這個 campaign id (清誤建的)"
         required: false
         default: ""
+      delete_adset_ids:
+        description: "先刪掉這些 ad set id (清空的,逗號分隔)"
+        required: false
+        default: ""
       live:
         description: "true=真的上傳建廣告(PAUSED) / false=只試跑"
         required: true
@@ -51,5 +55,6 @@ jobs:
           APPEND_ONLY: ${{ github.event.inputs.append_only }}
           FULLAD_CAMPAIGN_ID: ${{ github.event.inputs.target_campaign_id }}
           DELETE_CAMPAIGN_ID: ${{ github.event.inputs.delete_campaign_id }}
+          DELETE_ADSET_IDS: ${{ github.event.inputs.delete_adset_ids }}
           DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
         run: python launch_fullad_interest.py
