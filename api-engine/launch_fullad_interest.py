@@ -39,6 +39,10 @@ ORDER = ["2.mp4", "8.mp4", "16.mp4", "18.mp4", "19.mp4", "20.mp4",
 PACE = float(os.environ.get("PACE_SEC") or 3)
 # APPEND_ONLY:只建這幾支(逗號分隔檔名),且不刪同名 campaign,沿用現有的(補片用)。
 APPEND_ONLY = [s.strip() for s in (os.environ.get("APPEND_ONLY") or "").split(",") if s.strip()]
+# FULLAD_CAMPAIGN_ID:直接指定要補進的 campaign id(繞過用日期組的名稱去找,避免跨日建到新 campaign)。
+TARGET_CAMPAIGN_ID = (os.environ.get("FULLAD_CAMPAIGN_ID") or "").strip()
+# DELETE_CAMPAIGN_ID:先刪掉這個 campaign(清掉之前誤建的那條)。
+DELETE_CAMPAIGN_ID = (os.environ.get("DELETE_CAMPAIGN_ID") or "").strip()
 
 
 def run():
@@ -67,9 +71,15 @@ def run():
         raise SystemExit("沒有可上的影片(對不到檔名/文案)。")
 
     L.ensure_page_advertiser()
-    camp = VP.find_campaign(account, cname) if APPEND_ONLY else None
+    if DELETE_CAMPAIGN_ID:
+        try:
+            Campaign(DELETE_CAMPAIGN_ID).api_delete()
+            print(f"  🗑 已刪除誤建的 campaign {DELETE_CAMPAIGN_ID}")
+        except Exception as e:
+            print(f"  ⚠️ 刪除 {DELETE_CAMPAIGN_ID} 失敗: {str(e)[:100]}")
+    camp = TARGET_CAMPAIGN_ID or (VP.find_campaign(account, cname) if APPEND_ONLY else None)
     if camp:
-        print(f"  ↺ APPEND：沿用現有 campaign {camp}: {cname}")
+        print(f"  ↺ APPEND：補進現有 campaign {camp}")
     else:
         if not APPEND_ONLY:
             L.delete_existing_campaigns(account, cname)
