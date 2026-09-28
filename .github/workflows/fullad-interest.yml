@@ -13,6 +13,14 @@ on:
         description: "只補這幾支(逗號分隔檔名,空=整批新建)"
         required: false
         default: ""
+      target_campaign_id:
+        description: "補進指定 campaign id (空=用名稱找/新建)"
+        required: false
+        default: ""
+      delete_campaign_id:
+        description: "先刪掉這個 campaign id (清誤建的)"
+        required: false
+        default: ""
       live:
         description: "true=真的上傳建廣告(PAUSED) / false=只試跑"
         required: true
@@ -41,5 +49,7 @@ jobs:
           GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
           INTEREST_ADSET_BUDGET: ${{ github.event.inputs.adset_budget }}
           APPEND_ONLY: ${{ github.event.inputs.append_only }}
+          FULLAD_CAMPAIGN_ID: ${{ github.event.inputs.target_campaign_id }}
+          DELETE_CAMPAIGN_ID: ${{ github.event.inputs.delete_campaign_id }}
           DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
         run: python launch_fullad_interest.py
