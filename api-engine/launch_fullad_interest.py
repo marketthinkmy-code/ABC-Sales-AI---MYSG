@@ -30,9 +30,15 @@ INTEREST_MAP = {
     "18.mp4": ("企業家",   "6003371567474"),
     "19.mp4": ("美業沙龍", "6003088846792"),
     "20.mp4": ("社群行銷", "6003389760112"),
+    "7.mp4":  ("新創公司", "6003325004380"),
+    "9.mp4":  ("Shopify店家", "6003230166788"),
+    "15.mp4": ("數位行銷B", "6003127206524"),
 }
-ORDER = ["2.mp4", "8.mp4", "16.mp4", "18.mp4", "19.mp4", "20.mp4"]
+ORDER = ["2.mp4", "8.mp4", "16.mp4", "18.mp4", "19.mp4", "20.mp4",
+         "7.mp4", "9.mp4", "15.mp4"]
 PACE = float(os.environ.get("PACE_SEC") or 3)
+# APPEND_ONLY:只建這幾支(逗號分隔檔名),且不刪同名 campaign,沿用現有的(補片用)。
+APPEND_ONLY = [s.strip() for s in (os.environ.get("APPEND_ONLY") or "").split(",") if s.strip()]
 
 
 def run():
@@ -42,9 +48,12 @@ def run():
     found = {f["name"]: f for f in VP.list_videos(svc)}
     cname = f"{N.campaign_name('Video')} · 完整片測試 · T1"
 
-    print(f"[fullad] folder {VP.FOLDER_ID} · 找到 {len(found)} 支影片 · 每組 {W.BUDGET:.0f}/日 · DRY_RUN={C.DRY_RUN}")
+    print(f"[fullad] folder {VP.FOLDER_ID} · 找到 {len(found)} 支影片 · 每組 {W.BUDGET:.0f}/日 "
+          f"· APPEND_ONLY={APPEND_ONLY or '(整批)'} · DRY_RUN={C.DRY_RUN}")
     print(f"  campaign: {cname}（ABO / {C.OBJECTIVE} / PAUSED）")
     plan = [fn for fn in ORDER if fn in found and fn in COPY]
+    if APPEND_ONLY:
+        plan = [fn for fn in plan if fn in APPEND_ONLY]
     for fn in plan:
         lbl, iid = INTEREST_MAP[fn]
         print(f"    · {fn} → 興趣「{lbl}」({iid})｜「{COPY[fn]['headline']}」")
@@ -58,12 +67,17 @@ def run():
         raise SystemExit("沒有可上的影片(對不到檔名/文案)。")
 
     L.ensure_page_advertiser()
-    L.delete_existing_campaigns(account, cname)
-    camp = C.fb_retry(account.create_campaign, params={
-        "name": cname, "objective": C.OBJECTIVE, "special_ad_categories": [],
-        "status": "PAUSED", "is_adset_budget_sharing_enabled": False,
-    })["id"]
-    print(f"  ✓ ABO campaign {camp}: {cname}")
+    camp = VP.find_campaign(account, cname) if APPEND_ONLY else None
+    if camp:
+        print(f"  ↺ APPEND：沿用現有 campaign {camp}: {cname}")
+    else:
+        if not APPEND_ONLY:
+            L.delete_existing_campaigns(account, cname)
+        camp = C.fb_retry(account.create_campaign, params={
+            "name": cname, "objective": C.OBJECTIVE, "special_ad_categories": [],
+            "status": "PAUSED", "is_adset_budget_sharing_enabled": False,
+        })["id"]
+        print(f"  ✓ ABO campaign {camp}: {cname}")
 
     n = 0
     for fn in plan:
