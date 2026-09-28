@@ -43,6 +43,8 @@ APPEND_ONLY = [s.strip() for s in (os.environ.get("APPEND_ONLY") or "").split(",
 TARGET_CAMPAIGN_ID = (os.environ.get("FULLAD_CAMPAIGN_ID") or "").strip()
 # DELETE_CAMPAIGN_ID:先刪掉這個 campaign(清掉之前誤建的那條)。
 DELETE_CAMPAIGN_ID = (os.environ.get("DELETE_CAMPAIGN_ID") or "").strip()
+# DELETE_ADSET_IDS:先刪掉這些 ad set(清掉上傳失敗留下的空 ad set)。
+DELETE_ADSET_IDS = [s.strip() for s in (os.environ.get("DELETE_ADSET_IDS") or "").split(",") if s.strip()]
 
 
 def run():
@@ -71,6 +73,13 @@ def run():
         raise SystemExit("沒有可上的影片(對不到檔名/文案)。")
 
     L.ensure_page_advertiser()
+    from facebook_business.adobjects.adset import AdSet
+    for aid in DELETE_ADSET_IDS:
+        try:
+            AdSet(aid).api_delete()
+            print(f"  🗑 已刪除空 ad set {aid}")
+        except Exception as e:
+            print(f"  ⚠️ 刪 ad set {aid} 失敗: {str(e)[:100]}")
     if DELETE_CAMPAIGN_ID:
         try:
             Campaign(DELETE_CAMPAIGN_ID).api_delete()
