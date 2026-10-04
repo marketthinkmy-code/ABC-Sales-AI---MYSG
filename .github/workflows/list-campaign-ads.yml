@@ -1,0 +1,26 @@
+name: List Campaign Ads (列廣告名稱+狀態)
+
+on:
+  workflow_dispatch:
+    inputs:
+      campaign_ids:
+        description: "campaign id (逗號分隔,空=兩條測試)"
+        required: false
+        default: ""
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run list-campaign-ads
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          LIST_CAMPAIGN_IDS: ${{ github.event.inputs.campaign_ids }}
+        run: python list_campaign_ads.py
