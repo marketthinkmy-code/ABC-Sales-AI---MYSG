@@ -1,0 +1,41 @@
+name: Geo Test (北部 vs 中南部 · 贏家影片)
+
+# 手動執行。用贏家影片開地區測試 campaign(北部 / 中南部 兩個 ad set,各在地文案)。
+# 預設 dry run(解析地區+排組);live=true 才真的建(仍 PAUSED)。
+on:
+  workflow_dispatch:
+    inputs:
+      adset_budget:
+        description: "每個地區 ad set 日預算 TWD"
+        required: false
+        default: "500"
+      live:
+        description: "true=真的建(PAUSED) / false=只試跑"
+        required: true
+        default: "false"
+
+jobs:
+  geo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run geo-test
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          INTEREST_PIXEL: ${{ secrets.INTEREST_PIXEL }}
+          INTEREST_EVENT: ${{ secrets.INTEREST_EVENT }}
+          GEO_ADSET_BUDGET: ${{ github.event.inputs.adset_budget }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python launch_geo_test.py
