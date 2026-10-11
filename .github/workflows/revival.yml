@@ -1,0 +1,41 @@
+name: Revival Campaign (復活賽 · 舊 creative 重跑)
+
+# 手動執行。開復活賽 campaign:每組 1 影片 + 1 單圖(引用現有 creative)、興趣定向。
+# 預設 dry run(只配對);live=true 才真的建(仍 PAUSED)。
+on:
+  workflow_dispatch:
+    inputs:
+      adset_budget:
+        description: "每組興趣 ad set 日預算 TWD"
+        required: false
+        default: "400"
+      live:
+        description: "true=真的建(PAUSED) / false=只試跑配對"
+        required: true
+        default: "false"
+
+jobs:
+  revival:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run revival
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          INTEREST_PIXEL: ${{ secrets.INTEREST_PIXEL }}
+          INTEREST_EVENT: ${{ secrets.INTEREST_EVENT }}
+          INTEREST_ADSET_BUDGET: ${{ github.event.inputs.adset_budget }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python launch_revival.py
