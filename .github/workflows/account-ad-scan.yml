@@ -1,0 +1,31 @@
+name: Account Ad Scan (挖低花費潛力股 + 疲勞)
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_spent:
+        description: "幾乎沒投的門檻 TWD"
+        required: false
+        default: "100"
+      good_cpl:
+        description: "潛力股 CPL 上限 TWD"
+        required: false
+        default: "90"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run account-ad-scan
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          MIN_SPENT: ${{ github.event.inputs.min_spent }}
+          GOOD_CPL: ${{ github.event.inputs.good_cpl }}
+        run: python account_ad_scan.py
