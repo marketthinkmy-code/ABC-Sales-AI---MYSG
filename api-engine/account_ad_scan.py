@@ -13,7 +13,7 @@ env: META_ACCESS_TOKEN, AD_ACCOUNT_ID,
      MIN_SPENT(預設 100), POTENTIAL_MAX_SPENT(預設 1500),
      GOOD_CPL(預設 90), MIN_LEADS(預設 5), FATIGUE_FREQ(預設 2.5)
 """
-import os
+import os, re
 from collections import defaultdict
 import config as C
 from facebook_business.adobjects.adaccount import AdAccount
@@ -23,6 +23,16 @@ POT_MAX = float(os.environ.get("POTENTIAL_MAX_SPENT") or 1500)
 GOOD_CPL = float(os.environ.get("GOOD_CPL") or 90)
 MIN_LEADS = int(os.environ.get("MIN_LEADS") or 5)
 FATIGUE_FREQ = float(os.environ.get("FATIGUE_FREQ") or 2.5)
+# 「有花費的替代主力」門檻:歷史花費 ≥ PROVEN_MIN、有報名、CPL ≤ PROVEN_CPL,且非 V1/V9。
+PROVEN_MIN = float(os.environ.get("PROVEN_MIN") or 300)
+PROVEN_CPL = float(os.environ.get("PROVEN_CPL") or 120)
+
+# 排除 Video 1 / Video 9（含 M1Video 1/9、Video1、Video 09…），但不誤殺 Video 10~19。
+_EXCL = (re.compile(r"vid(?:eo)?\s*0*1(?!\d)", re.I), re.compile(r"vid(?:eo)?\s*0*9(?!\d)", re.I))
+
+
+def is_v1_v9(nm):
+    return any(p.search(nm or "") for p in _EXCL)
 
 
 def _is_reg(a):
@@ -85,6 +95,17 @@ def run():
     tot = sum(r["spend"] for r in rows)
     print("SCAN_START")
     print(f"全帳號歷史：{len(rows)} 支廣告有紀錄 · 總花費={tot:,.0f} TWD")
+
+    # ★ 可投放替代主力：非 V1/V9、有花費、CPL 可接受（依 CPL 低→高）
+    alt = [r for r in rows if not is_v1_v9(r["name"])
+           and r["spend"] >= PROVEN_MIN and r["leads"] >= MIN_LEADS
+           and r["cpl"] is not None and r["cpl"] <= PROVEN_CPL]
+    alt.sort(key=lambda x: x["cpl"])
+    print(f"\n== ★ 可投放替代主力（非 V1/V9、花費≥{PROVEN_MIN:.0f}、報名≥{MIN_LEADS}、CPL≤{PROVEN_CPL:.0f}，依 CPL 排）{len(alt)} 支 ==")
+    print(f"{'廣告':46s} {'歷史花費':>8s} {'報名':>5s} {'CPL':>6s}")
+    for r in alt[:15]:
+        print(f"{r['name'][:44]:46s} {r['spend']:8,.0f} {r['leads']:5d} {r['cpl']:6,.0f}")
+
     print(f"門檻：潛力股=歷史花費 {MIN_SPENT:.0f}~{POT_MAX:.0f}、報名≥{MIN_LEADS}、CPL≤{GOOD_CPL:.0f}"
           f" · 幾乎沒投<{MIN_SPENT:.0f} · 疲勞=近14天 freq≥{FATIGUE_FREQ}")
 
