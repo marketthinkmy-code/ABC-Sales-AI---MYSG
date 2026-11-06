@@ -1,0 +1,45 @@
+name: Static Image Ads (靜圖廣告 · config/static_ads.json)
+
+# 手動執行。把 config/static_ads.json 的靜圖上成 Meta 圖片廣告(ABO,一個 ad set)。
+# 預設 dry run(只印清單);live=true 才真的上傳建廣告(仍 PAUSED,除非 activate=true)。
+on:
+  workflow_dispatch:
+    inputs:
+      adset_budget:
+        description: "ad set 日預算 TWD"
+        required: false
+        default: "800"
+      activate:
+        description: "true=建完開ACTIVE / false=留PAUSED"
+        required: false
+        default: "false"
+      live:
+        description: "true=真的上傳建廣告(PAUSED) / false=只試跑"
+        required: true
+        default: "false"
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run static-ads
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          CONVERSION_EVENT: ${{ secrets.CONVERSION_EVENT }}
+          CLONE_SOURCE_ADSET: ${{ secrets.CLONE_SOURCE_ADSET }}
+          IMAGE_ADSET_BUDGET: ${{ github.event.inputs.adset_budget }}
+          ACTIVATE: ${{ github.event.inputs.activate }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python launch_static_ads.py
