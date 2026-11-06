@@ -17,6 +17,14 @@ on:
         description: "true=真的上傳建廣告(PAUSED) / false=只試跑"
         required: true
         default: "false"
+      config:
+        description: "靜圖清單 JSON(相對 repo 根)"
+        required: false
+        default: "config/static_ads.json"
+      campaign_suffix:
+        description: "campaign 名稱後綴(分開不同批,避免覆蓋)"
+        required: false
+        default: ""
 
 jobs:
   static:
@@ -41,5 +49,7 @@ jobs:
           CLONE_SOURCE_ADSET: ${{ secrets.CLONE_SOURCE_ADSET }}
           IMAGE_ADSET_BUDGET: ${{ github.event.inputs.adset_budget }}
           ACTIVATE: ${{ github.event.inputs.activate }}
+          STATIC_ADS_CONFIG: ${{ github.workspace }}/${{ github.event.inputs.config }}
+          STATIC_CAMPAIGN_SUFFIX: ${{ github.event.inputs.campaign_suffix }}
           DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
         run: python launch_static_ads.py
