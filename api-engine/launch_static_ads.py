@@ -25,7 +25,8 @@ AGE_MIN = int(os.environ.get("AGE_MIN") or 30)
 AGE_MAX = int(os.environ.get("AGE_MAX") or 55)
 # 22 = Traditional Chinese (Taiwan)。已從 Meta targetingsearch 驗證(不是 31=葡萄牙語)。
 TW_LOCALE = [int(os.environ.get("TW_LOCALE") or 22)]
-DATA = os.path.join(C.ROOT, "config", "static_ads.json")
+DATA = os.environ.get("STATIC_ADS_CONFIG") or os.path.join(C.ROOT, "config", "static_ads.json")
+CAMPAIGN_SUFFIX = (os.environ.get("STATIC_CAMPAIGN_SUFFIX") or "").strip()
 
 
 def targeting():
@@ -107,6 +108,8 @@ def run():
         raise SystemExit("找不到合規來源(贏家 ad set),無法建容器。")
     src = winners[0]["adset_id"]
     cname = N.campaign_name("Image")
+    if CAMPAIGN_SUFFIX:
+        cname = f"{cname} · {CAMPAIGN_SUFFIX}"
     L.delete_existing_campaigns(account, cname)
     camp = C.fb_retry(account.create_campaign, params={
         "name": cname, "objective": C.OBJECTIVE, "special_ad_categories": [],
