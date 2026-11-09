@@ -27,6 +27,8 @@ AGE_MAX = int(os.environ.get("AGE_MAX") or 55)
 TW_LOCALE = [int(os.environ.get("TW_LOCALE") or 22)]
 DATA = os.environ.get("STATIC_ADS_CONFIG") or os.path.join(C.ROOT, "config", "static_ads.json")
 CAMPAIGN_SUFFIX = (os.environ.get("STATIC_CAMPAIGN_SUFFIX") or "").strip()
+CAMPAIGN_ID = (os.environ.get("STATIC_CAMPAIGN_ID") or "").strip()   # 設了就掛進這個現有 campaign,新建 ad set
+ADSET_LABEL = (os.environ.get("STATIC_ADSET_LABEL") or "組1").strip()
 
 
 def targeting():
@@ -107,17 +109,23 @@ def run():
     if not winners:
         raise SystemExit("找不到合規來源(贏家 ad set),無法建容器。")
     src = winners[0]["adset_id"]
-    cname = N.campaign_name("Image")
-    if CAMPAIGN_SUFFIX:
-        cname = f"{cname} · {CAMPAIGN_SUFFIX}"
-    L.delete_existing_campaigns(account, cname)
-    camp = C.fb_retry(account.create_campaign, params={
-        "name": cname, "objective": C.OBJECTIVE, "special_ad_categories": [],
-        "status": "PAUSED", "is_adset_budget_sharing_enabled": False,
-    })["id"]
-    print(f"  ✓ ABO campaign {camp}: {cname}")
+    if CAMPAIGN_ID:
+        # 掛進現有 campaign,只新建 ad set(不新建、不刪 campaign)
+        camp = CAMPAIGN_ID
+        cname = C.fb_retry(lambda: Campaign(camp).api_get(fields=["name"]).get("name")) or camp
+        print(f"  ✓ 掛進現有 ABO campaign {camp}: {cname}")
+    else:
+        cname = N.campaign_name("Image")
+        if CAMPAIGN_SUFFIX:
+            cname = f"{cname} · {CAMPAIGN_SUFFIX}"
+        L.delete_existing_campaigns(account, cname)
+        camp = C.fb_retry(account.create_campaign, params={
+            "name": cname, "objective": C.OBJECTIVE, "special_ad_categories": [],
+            "status": "PAUSED", "is_adset_budget_sharing_enabled": False,
+        })["id"]
+        print(f"  ✓ ABO campaign {camp}: {cname}")
 
-    adset_id = make_abo_adset(account, camp, src, "組1")
+    adset_id = make_abo_adset(account, camp, src, ADSET_LABEL)
     print(f"  ── ad set {adset_id}(台灣 · 30-55 · 繁中 · 手動版位 · {ADSET_BUDGET:.0f}/日)")
 
     n = 0

@@ -25,6 +25,14 @@ on:
         description: "campaign 名稱後綴(分開不同批,避免覆蓋)"
         required: false
         default: ""
+      campaign_id:
+        description: "掛進現有 campaign ID(設了就只新建 ad set,不新建 campaign)"
+        required: false
+        default: ""
+      adset_label:
+        description: "新 ad set 的標籤(接在版位名後面)"
+        required: false
+        default: "組1"
 
 jobs:
   static:
@@ -51,5 +59,7 @@ jobs:
           ACTIVATE: ${{ github.event.inputs.activate }}
           STATIC_ADS_CONFIG: ${{ github.workspace }}/${{ github.event.inputs.config }}
           STATIC_CAMPAIGN_SUFFIX: ${{ github.event.inputs.campaign_suffix }}
+          STATIC_CAMPAIGN_ID: ${{ github.event.inputs.campaign_id }}
+          STATIC_ADSET_LABEL: ${{ github.event.inputs.adset_label }}
           DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
         run: python launch_static_ads.py
