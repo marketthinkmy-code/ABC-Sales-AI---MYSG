@@ -12,6 +12,9 @@ on:
         required: false
         default: "24"
 
+permissions:
+  contents: write
+
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -31,10 +34,15 @@ jobs:
           PROBE_FILE_ID: ${{ github.event.inputs.file_id }}
           PROBE_FRAMES: ${{ github.event.inputs.frames }}
         run: python probe_video.py
+      - name: Upload frames artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-frames
+          path: scratch/video_probe/*.jpg
       - name: Commit frames
         run: |
           git config user.name "abc-ads-bot"
           git config user.email "actions@github.com"
           git add scratch/video_probe/*.jpg
           git commit -m "probe: extract frames for copywriting [skip ci]" || echo "nothing to commit"
-          git push origin HEAD:claude/ads-automation-setup-z1e4wm
+          git push origin HEAD:claude/ads-automation-setup-z1e4wm || echo "push failed (use artifact)"
