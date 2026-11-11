@@ -1,0 +1,48 @@
+name: Add Geo Videos (雙北桃園 加影片)
+
+# 在「地區測試」campaign 的『雙北桃園』ad set 加多 N 支不重複的 proven 影片(引用既有 creative)。
+# 預設 dry run;live=true 才真的建(仍 PAUSED)。
+on:
+  workflow_dispatch:
+    inputs:
+      add_n:
+        description: "要加幾支不重複影片"
+        required: false
+        default: "3"
+      adset_must:
+        description: "ad set 名稱關鍵字"
+        required: false
+        default: "雙北桃園"
+      camp_must:
+        description: "campaign 名稱關鍵字(逗號分隔,全部要命中)"
+        required: false
+        default: "地區測試,T1"
+      live:
+        description: "true=真的建廣告(PAUSED) / false=只試跑"
+        required: true
+        default: "false"
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run add-geo-videos
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          ADD_N: ${{ github.event.inputs.add_n }}
+          ADSET_MUST: ${{ github.event.inputs.adset_must }}
+          CAMP_MUST: ${{ github.event.inputs.camp_must }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python add_geo_videos.py
