@@ -1,0 +1,40 @@
+name: Probe Video (抽畫格看內容)
+
+# 下載一支 Drive 影片,抽等間隔畫格成 jpg,commit 回本分支供人工檢視(寫文案用)。不建廣告。
+on:
+  workflow_dispatch:
+    inputs:
+      file_id:
+        description: "Drive 檔案 ID"
+        required: true
+      frames:
+        description: "抽幾格"
+        required: false
+        default: "24"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/ads-automation-setup-z1e4wm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pip install -r api-engine/requirements.txt
+      - name: Extract frames
+        working-directory: api-engine
+        env:
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          PROBE_FILE_ID: ${{ github.event.inputs.file_id }}
+          PROBE_FRAMES: ${{ github.event.inputs.frames }}
+        run: python probe_video.py
+      - name: Commit frames
+        run: |
+          git config user.name "abc-ads-bot"
+          git config user.email "actions@github.com"
+          git add scratch/video_probe/*.jpg
+          git commit -m "probe: extract frames for copywriting [skip ci]" || echo "nothing to commit"
+          git push origin HEAD:claude/ads-automation-setup-z1e4wm
