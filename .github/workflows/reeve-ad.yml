@@ -1,0 +1,44 @@
+name: Reeve Video Ad (揭祕後台影片上廣告)
+
+# 把 Drive 的 reeve style.mov 上成 1 支影片廣告(課程導師受眾)。
+# 預設 dry run;live=true 才真的下載/上傳/建(仍 PAUSED)。
+on:
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "ad set 日預算 TWD"
+        required: false
+        default: "800"
+      file_id:
+        description: "Drive 影片 ID(預設讀 config/reeve_copy.json)"
+        required: false
+        default: ""
+      live:
+        description: "true=真的建廣告(PAUSED) / false=只試跑"
+        required: true
+        default: "false"
+
+jobs:
+  reeve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run launch_reeve_ad
+        working-directory: api-engine
+        env:
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          INTEREST_ADSET_BUDGET: ${{ github.event.inputs.budget }}
+          REEVE_FILE_ID: ${{ github.event.inputs.file_id }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python launch_reeve_ad.py
