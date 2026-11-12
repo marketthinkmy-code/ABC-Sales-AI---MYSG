@@ -1,0 +1,53 @@
+name: Broad Advantage+ (廣受眾測 content)
+
+# 開一條廣受眾 Advantage+ campaign,把來源 campaign 的已過審 creative 丟進一個廣 ad set。
+# 預設 dry run;live=true 才真的建(仍 PAUSED)。
+on:
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "ad set 日預算 TWD"
+        required: false
+        default: "1000"
+      age_min:
+        description: "最小年齡"
+        required: false
+        default: "25"
+      age_max:
+        description: "最大年齡"
+        required: false
+        default: "55"
+      source_campaigns:
+        description: "來源 campaign ID(逗號分隔;收它們的已過審 creative)"
+        required: false
+        default: "120247263797180658,120247964979690658"
+      live:
+        description: "true=真的建廣告(PAUSED) / false=只試跑"
+        required: true
+        default: "false"
+
+jobs:
+  broad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run launch_broad_advantage
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          INSTAGRAM_ID: ${{ secrets.INSTAGRAM_ID }}
+          PIXEL_ID: ${{ secrets.PIXEL_ID }}
+          LANDING_URL: ${{ secrets.LANDING_URL }}
+          OBJECTIVE: ${{ secrets.OBJECTIVE }}
+          BROAD_BUDGET: ${{ github.event.inputs.budget }}
+          AGE_MIN: ${{ github.event.inputs.age_min }}
+          AGE_MAX: ${{ github.event.inputs.age_max }}
+          SOURCE_CAMPAIGNS: ${{ github.event.inputs.source_campaigns }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python launch_broad_advantage.py
