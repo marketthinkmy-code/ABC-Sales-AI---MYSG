@@ -1,97 +1,117 @@
 """
-聚合 ZIV 房貸 funnel 的『付款學員』分頁 —— 只輸出 campaign / ad set / creative 的「成交人數」聚合,
+聚合 MTC funnel 的『付款學員』分頁 —— 只輸出 campaign / ad set / creative 的「成交人數」聚合,
 不輸出任何個資(姓名/email/電話一律不印、不帶出)。
 
-env: GOOGLE_SA_JSON, ZIV_SHEET_ID, ZIV_TAB(預設 付款學員), ZIV_RANGE(預設 A1:AE1200)
-用法: python analyze_buyers_ziv.py
+走 Drive export(SA 的 drive.readonly 權限)把整本匯出成 xlsx 再用 openpyxl 解析指定分頁,
+避免 Sheets API(專案層級可能沒開)。
+
+env: GOOGLE_SA_JSON, ZIV_SHEET_ID, ZIV_TAB(預設 付款學員), DRY_RUN(無作用)
+用法: ZIV_SHEET_ID=xxx python analyze_buyers_ziv.py
 """
 import os, io, json, collections
 
 SHEET_ID = os.environ["ZIV_SHEET_ID"]
-TAB = os.environ.get("ZIV_TAB") or "付款學員"
-RNG = os.environ.get("ZIV_RANGE") or "A1:AE1200"
+TAB = (os.environ.get("ZIV_TAB") or "付款學員").strip()
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-def sheets():
+def export_xlsx(fid, path):
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseDownload
     info = json.loads(os.environ["GOOGLE_SA_JSON"])
     creds = service_account.Credentials.from_service_account_info(
-        info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"])
-    return build("sheets", "v4", credentials=creds, cache_discovery=False)
+        info, scopes=["https://www.googleapis.com/auth/drive.readonly"])
+    svc = build("drive", "v3", credentials=creds, cache_discovery=False)
+    req = svc.files().export_media(fileId=fid, mimeType=XLSX)
+    with io.FileIO(path, "wb") as fh:
+        dl = MediaIoBaseDownload(fh, req, chunksize=8 * 1024 * 1024)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+
+
+def pick_sheet(wb, want):
+    for ws in wb.worksheets:
+        if (ws.title or "").strip() == want:
+            return ws
+    for ws in wb.worksheets:
+        if want in (ws.title or ""):
+            return ws
+    return None
 
 
 def col(headers, *names):
-    for i, h in enumerate(headers):
-        hs = (h or "").strip().lower()
-        for n in names:
-            if hs == n.strip().lower():
+    low = [(h or "").strip().lower() for h in headers]
+    for n in names:
+        for i, h in enumerate(low):
+            if h == n.strip().lower():
                 return i
-    # 容錯:包含關係
-    for i, h in enumerate(headers):
-        hs = (h or "").strip().lower()
-        for n in names:
-            if n.strip().lower() in hs:
+    for n in names:
+        for i, h in enumerate(low):
+            if n.strip().lower() in h:
                 return i
     return -1
 
 
 def main():
-    svc = sheets()
+    import openpyxl
+    path = "/tmp/book.xlsx"
+    print(f"匯出試算表 {SHEET_ID} …")
     try:
-        vals = svc.spreadsheets().values().get(
-            spreadsheetId=SHEET_ID, range=f"'{TAB}'!{RNG}").execute().get("values", [])
+        export_xlsx(SHEET_ID, path)
     except Exception as e:
-        msg = str(e)
-        print(f"✗ 讀不到試算表: {msg[:200]}")
-        if "403" in msg or "PERMISSION" in msg or "404" in msg:
-            print("→ 把這份試算表分享(檢視權限)給服務帳號:\n   twabc-ads-bot@abctwai.iam.gserviceaccount.com")
+        print(f"✗ 匯出失敗: {str(e)[:200]}")
         raise SystemExit(1)
+    print(f"✓ 匯出 {os.path.getsize(path)} bytes，載入…")
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    print(f"  分頁清單: {[w.title for w in wb.worksheets]}")
+    ws = pick_sheet(wb, TAB)
+    if ws is None:
+        raise SystemExit(f"找不到分頁『{TAB}』。")
+    rows = [list(r) for r in ws.iter_rows(values_only=True)]
+    print(f"  分頁『{ws.title}』: {len(rows)} 列")
 
-    if not vals:
-        raise SystemExit("分頁沒資料。")
-
-    # 找 header 列(含 'source' 與 'UTM Ads Name')
+    # 找 header 列
     hrow = 0
-    for i, r in enumerate(vals[:5]):
-        low = [(c or "").strip().lower() for c in r]
-        if any("source" == c for c in low) and any("utm ads name" in c for c in low):
+    for i, r in enumerate(rows[:6]):
+        low = [str(c).strip().lower() if c is not None else "" for c in r]
+        if any(c == "source" for c in low) and any("utm ads name" in c for c in low):
             hrow = i
             break
-    headers = vals[hrow]
+    headers = [str(c) if c is not None else "" for c in rows[hrow]]
     i_name = col(headers, "名字", "Name")
     i_pay = col(headers, "付費管道")
     i_ptime = col(headers, "付款時間")
     i_src = col(headers, "source")
     i_set = col(headers, "UTM Ads Set")
     i_ad = col(headers, "UTM Ads Name")
-    print(f"分頁 {TAB} | header 在第 {hrow+1} 列 | 欄位 index: name={i_name} pay={i_pay} "
-          f"ptime={i_ptime} source={i_src} adset={i_set} adname={i_ad}")
+    print(f"  header 第 {hrow+1} 列 | index: name={i_name} pay={i_pay} ptime={i_ptime} "
+          f"source={i_src} adset={i_set} adname={i_ad}")
+    if i_ad < 0 and i_src < 0:
+        raise SystemExit("找不到 source / UTM Ads Name 欄,請確認分頁。")
 
     def g(r, i):
-        return (r[i].strip() if 0 <= i < len(r) and r[i] else "")
+        if 0 <= i < len(r) and r[i] is not None:
+            return str(r[i]).strip()
+        return ""
 
     total = refunds = attributed = 0
     by_ad = collections.Counter()
     by_src = collections.Counter()
     by_set = collections.Counter()
-    by_ad_set = collections.Counter()  # creative × adset 交叉(選)
-    for r in vals[hrow+1:]:
+    for r in rows[hrow+1:]:
         name = g(r, i_name)
         if not name or name.lower() in ("name", "名字"):
             continue
-        # 需要像一筆成交:有付費管道或付款時間
         if not (g(r, i_pay) or g(r, i_ptime)):
             continue
-        rowtext = " ".join(c or "" for c in r)
-        is_refund = "退款" in rowtext
+        rowtext = " ".join(str(c) for c in r if c is not None)
         total += 1
-        if is_refund:
+        if "退款" in rowtext:
             refunds += 1
-            continue  # 退款不算有效成交
-        src = g(r, i_src)
-        aset = g(r, i_set)
-        ad = g(r, i_ad)
+            continue
+        src, aset, ad = g(r, i_src), g(r, i_set), g(r, i_ad)
         if src or ad or aset:
             attributed += 1
         by_ad[ad or "(空白/無標記)"] += 1
@@ -100,8 +120,10 @@ def main():
 
     net = total - refunds
     print(f"\n==== 總覽 ====")
-    print(f"付款列總數: {total} | 退款: {refunds} | 淨成交: {net} | 有廣告標記: {attributed} "
-          f"({attributed/net*100:.0f}% of 淨成交)" if net else "")
+    print(f"付款列總數: {total} | 退款: {refunds} | 淨成交: {net} | 有廣告標記: {attributed}"
+          + (f" ({attributed/net*100:.0f}% of 淨成交)" if net else ""))
+    if not net:
+        return
 
     def dump(title, counter, topn=30):
         print(f"\n==== {title}（淨成交 {net}）====")
