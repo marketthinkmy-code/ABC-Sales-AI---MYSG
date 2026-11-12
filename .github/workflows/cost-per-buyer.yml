@@ -1,0 +1,33 @@
+name: Cost Per Buyer (每買家成本)
+
+# 把付款學員表的買家數 × Meta 各 campaign 花費,算每買家成本。只印聚合,不印個資。
+on:
+  workflow_dispatch:
+    inputs:
+      sheet_id:
+        description: "付款學員 Google Sheet ID"
+        required: false
+        default: "1WdNp5xFYlVg6TPSJC4u-ZwSGtni-R54Kr9b6ZvuQ4yo"
+      tab:
+        description: "分頁名稱"
+        required: false
+        default: "付款學員"
+
+jobs:
+  cpb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt openpyxl
+      - name: Run cost_per_buyer
+        working-directory: api-engine
+        env:
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          CPB_SHEET_ID: ${{ github.event.inputs.sheet_id }}
+          CPB_TAB: ${{ github.event.inputs.tab }}
+        run: python cost_per_buyer.py
