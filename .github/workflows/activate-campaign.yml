@@ -1,0 +1,31 @@
+name: Activate Campaign (開 ACTIVE)
+
+# 把指定 campaign 整條開 ACTIVE(ad → ad set → campaign)。預設 dry run;live=true 才真的開。
+on:
+  workflow_dispatch:
+    inputs:
+      campaigns:
+        description: "campaign ID(逗號分隔)"
+        required: true
+      live:
+        description: "true=真的開 ACTIVE / false=只試跑"
+        required: true
+        default: "false"
+
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run activate_campaign
+        working-directory: api-engine
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_ID: ${{ secrets.AD_ACCOUNT_ID }}
+          ACTIVATE_CAMPAIGNS: ${{ github.event.inputs.campaigns }}
+          DRY_RUN: ${{ github.event.inputs.live == 'true' && 'false' || 'true' }}
+        run: python activate_campaign.py
