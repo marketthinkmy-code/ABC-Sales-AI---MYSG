@@ -1,0 +1,31 @@
+name: Analyze ZIV Buyers (成交學員歸因聚合)
+
+# 聚合 ZIV 房貸 funnel『付款學員』分頁,只印 campaign/ad set/creative 的成交人數(不印任何個資)。
+on:
+  workflow_dispatch:
+    inputs:
+      sheet_id:
+        description: "Google Sheet ID"
+        required: false
+        default: "1TnMIUTupJIcbDEj6JvVvnUF2XxdY5v4JMt8XHjUkE30"
+      tab:
+        description: "分頁名稱"
+        required: false
+        default: "付款學員"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api-engine/requirements.txt
+      - name: Run analyze_buyers_ziv
+        working-directory: api-engine
+        env:
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          ZIV_SHEET_ID: ${{ github.event.inputs.sheet_id }}
+          ZIV_TAB: ${{ github.event.inputs.tab }}
+        run: python analyze_buyers_ziv.py
