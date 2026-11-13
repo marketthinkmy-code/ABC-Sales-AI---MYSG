@@ -5,12 +5,17 @@ on:
   workflow_dispatch:
     inputs:
       file_id:
-        description: "Drive 檔案 ID"
-        required: true
-      frames:
-        description: "抽幾格"
+        description: "Drive 檔案 ID(單一影片)"
         required: false
-        default: "24"
+        default: ""
+      folder_id:
+        description: "Drive 資料夾 ID(整夾影片)"
+        required: false
+        default: ""
+      frames:
+        description: "每支抽幾格"
+        required: false
+        default: "12"
 
 permissions:
   contents: write
@@ -32,17 +37,18 @@ jobs:
         env:
           GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
           PROBE_FILE_ID: ${{ github.event.inputs.file_id }}
+          PROBE_FOLDER_ID: ${{ github.event.inputs.folder_id }}
           PROBE_FRAMES: ${{ github.event.inputs.frames }}
         run: python probe_video.py
       - name: Upload frames artifact
         uses: actions/upload-artifact@v4
         with:
           name: video-frames
-          path: scratch/video_probe/*.jpg
+          path: scratch/video_probe/**/*.jpg
       - name: Commit frames
         run: |
           git config user.name "abc-ads-bot"
           git config user.email "actions@github.com"
-          git add scratch/video_probe/*.jpg
+          git add -A scratch/video_probe/
           git commit -m "probe: extract frames for copywriting [skip ci]" || echo "nothing to commit"
           git push origin HEAD:claude/ads-automation-setup-z1e4wm || echo "push failed (use artifact)"
