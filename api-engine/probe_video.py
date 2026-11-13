@@ -1,16 +1,19 @@
 """
-下載一支 Drive 影片 → 用 ffmpeg 抽出等間隔的畫格(含燒進去的字幕),存成 jpg。
+下載 Drive 影片 → 用 ffmpeg 抽出等間隔的畫格(含燒進去的字幕),存成 jpg。
 給「看影片內容 → 寫文案」用。不建任何廣告。
 
-env: GOOGLE_SA_JSON, PROBE_FILE_ID, PROBE_FRAMES(預設 24), PROBE_OUT(預設 scratch/video_probe)
-用法: PROBE_FILE_ID=xxxx python probe_video.py
-"""
-import os, io, json, subprocess, shutil
+支援兩種:
+- PROBE_FILE_ID: 單一檔案 → scratch/video_probe/
+- PROBE_FOLDER_ID: 整個資料夾的所有影片 → scratch/video_probe/<檔名>/
 
-FILE_ID = os.environ["PROBE_FILE_ID"]
-FRAMES = int(os.environ.get("PROBE_FRAMES") or 24)
-OUT = os.environ.get("PROBE_OUT") or os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scratch", "video_probe")
+env: GOOGLE_SA_JSON, PROBE_FILE_ID 或 PROBE_FOLDER_ID, PROBE_FRAMES(預設 12)
+"""
+import os, io, re, json, subprocess, shutil
+
+FILE_ID = os.environ.get("PROBE_FILE_ID") or ""
+FOLDER_ID = os.environ.get("PROBE_FOLDER_ID") or ""
+FRAMES = int(os.environ.get("PROBE_FRAMES") or 12)
+ROOT_OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scratch", "video_probe")
 SA_EMAIL = "twabc-ads-bot@abctwai.iam.gserviceaccount.com"
 
 
@@ -27,55 +30,74 @@ def download(svc, fid, path):
     from googleapiclient.http import MediaIoBaseDownload
     req = svc.files().get_media(fileId=fid, supportsAllDrives=True)
     with io.FileIO(path, "wb") as fh:
-        dl = MediaIoBaseDownload(fh, req, chunksize=8 * 1024 * 1024)
+        dl = MediaIoBaseDownload(fh, req, chunksize=16 * 1024 * 1024)
         done = False
         while not done:
             _, done = dl.next_chunk()
 
 
-def main():
-    svc = drive_service()
-    try:
-        meta = svc.files().get(fileId=FILE_ID, fields="name,mimeType,size",
-                               supportsAllDrives=True).execute()
-    except Exception as e:
-        msg = str(e)
-        print(f"✗ 讀不到檔案: {msg[:200]}")
-        if "404" in msg or "notFound" in msg or "403" in msg:
-            print(f"→ 這支影片沒有分享給服務帳號。請把檔案(或它所在的資料夾)分享給:\n   {SA_EMAIL}（檢視權限即可)")
-        raise SystemExit(1)
-    print(f"檔名: {meta.get('name')} | {meta.get('mimeType')} | {meta.get('size')} bytes")
+def list_videos(svc, folder):
+    out, tok = [], None
+    while True:
+        resp = svc.files().list(
+            q=f"'{folder}' in parents and trashed=false and mimeType contains 'video/'",
+            fields="nextPageToken, files(id,name,size)", pageSize=200,
+            supportsAllDrives=True, includeItemsFromAllDrives=True, pageToken=tok).execute()
+        out += resp.get("files", [])
+        tok = resp.get("nextPageToken")
+        if not tok:
+            break
+    return out
 
-    if os.path.isdir(OUT):
-        shutil.rmtree(OUT)
-    os.makedirs(OUT, exist_ok=True)
-    src = os.path.join(OUT, "_src.mov")
-    print("下載中…")
-    download(svc, FILE_ID, src)
-    print(f"✓ 下載完成 {os.path.getsize(src)} bytes")
 
-    # 時長
+def safe(name):
+    return re.sub(r"[^A-Za-z0-9_.-]", "_", os.path.splitext(name)[0])[:40]
+
+
+def probe_one(svc, fid, name, outdir):
+    os.makedirs(outdir, exist_ok=True)
+    src = os.path.join(outdir, "_src.mp4")
+    download(svc, fid, src)
     dur = float(subprocess.check_output([
         "ffprobe", "-v", "error", "-show_entries", "format=duration",
         "-of", "default=nw=1:nk=1", src]).decode().strip() or "0")
-    print(f"時長: {dur:.1f}s")
-
-    # 等間隔抽 FRAMES 格,縮到寬 540,jpg
     n = max(1, FRAMES)
     step = max(dur / (n + 1), 0.5)
+    got = 0
     for i in range(1, n + 1):
         t = step * i
         if t >= dur:
             break
-        out = os.path.join(OUT, f"f{i:02d}_{t:05.1f}s.jpg")
-        subprocess.run([
-            "ffmpeg", "-y", "-loglevel", "error", "-ss", f"{t:.2f}", "-i", src,
-            "-frames:v", "1", "-vf", "scale=540:-1", "-q:v", "4", out], check=False)
+        out = os.path.join(outdir, f"f{i:02d}_{t:05.1f}s.jpg")
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{t:.2f}", "-i", src,
+                        "-frames:v", "1", "-vf", "scale=540:-1", "-q:v", "4", out], check=False)
+        got += 1
     os.remove(src)
-    got = sorted(f for f in os.listdir(OUT) if f.endswith(".jpg"))
-    print(f"✓ 抽出 {len(got)} 格 → {OUT}")
-    for f in got:
-        print("   " + f)
+    print(f"  ✓ {name} | {dur:.0f}s | 抽 {got} 格 → {outdir}")
+
+
+def main():
+    svc = drive_service()
+    if os.path.isdir(ROOT_OUT):
+        shutil.rmtree(ROOT_OUT)
+    os.makedirs(ROOT_OUT, exist_ok=True)
+
+    if FOLDER_ID:
+        vids = list_videos(svc, FOLDER_ID)
+        print(f"資料夾 {FOLDER_ID}: {len(vids)} 支影片")
+        if not vids:
+            print(f"→ 資料夾空或沒分享給 SA。請分享給 {SA_EMAIL}(檢視)。")
+            raise SystemExit(1)
+        for v in vids:
+            try:
+                probe_one(svc, v["id"], v["name"], os.path.join(ROOT_OUT, safe(v["name"])))
+            except Exception as e:
+                print(f"  ⚠️ {v['name']} 失敗: {str(e)[:120]}")
+    elif FILE_ID:
+        meta = svc.files().get(fileId=FILE_ID, fields="name", supportsAllDrives=True).execute()
+        probe_one(svc, FILE_ID, meta["name"], ROOT_OUT)
+    else:
+        raise SystemExit("給 PROBE_FILE_ID 或 PROBE_FOLDER_ID。")
 
 
 if __name__ == "__main__":
